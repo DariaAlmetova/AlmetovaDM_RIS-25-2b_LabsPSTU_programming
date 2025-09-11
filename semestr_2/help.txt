@@ -1,0 +1,59 @@
+# Programm1
+## testing1
+
+*Github - best thing*
+
+**today**
+
+***hello!***
+
+Ala*by*ga
+
+~Zachet~
+
+>wend
+
+>>day
+
+list
+1. yu
+2. po
+3. es
+
+* tya
++ >
+
+- [x] text
+- [ ] text
+
+1. op
+     1. po
+
+ссылки
+1. <http://pstu.ru/>
+
+2. [Text](http://pstu.ru/ "подсказка")
+
+3. [Text][url1]
+
+[url1]: http://pstu.ru/ "popop"
+
+картинки
+![кот](https://github.com/user-attachments/assets/b513ec59-6729-4cff-a4de-f97f6af01e2f "picture")
+
+код
+```C
+#include <stdio.h>
+int main () {
+  print("hello world!");
+  return 0;
+}
+```
+
+таблички
+|first column|second|
+|:------:|-----:|
+|text|text1|
+
+\#
+"text\"text"
