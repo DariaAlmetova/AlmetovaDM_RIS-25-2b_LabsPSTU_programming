@@ -1,0 +1,287 @@
+// 1 version
+
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+// start - это текущая башня, с которой нужно переносить диски.
+// point - это целевая башня, на которую нужно поставить диски.
+// temp - это вспомогательная башня, которая помогает временно переносить диски во время рекурсии.
+
+void han(int n, int start, int point, int temp) {
+    if (n <= 0)
+        return;
+    han(n - 1, start, temp, point);
+    cout << start << " => " << point << endl;
+    han(n - 1, temp, point, start);
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите количество дисков: ";
+    cin >> n;
+    cout << "Шаги решения:\n";
+    han(n, 1, 3, 2);
+    return 0;
+}
+
+// 2 version
+
+#include <iostream>
+#include <clocale>
+#include <thread> // для sleep_for
+#include <chrono> // для milliseconds
+
+using namespace std;
+
+// ограничиваем максимальное количество дисков значением 3
+#define MAX_DISKS 3
+
+// массивы для хранения башен
+int tower1[MAX_DISKS], tower2[MAX_DISKS], tower3[MAX_DISKS];
+
+// Масштабируемая переменная для отслеживания высот башен
+int heights[] = { MAX_DISKS, 0, 0 };
+
+// выводит изображение башен на экран
+void printTowers() {
+    system("cls");
+
+    cout << "Ханойская башня:\n";
+
+    // рисуем сверху вниз
+    for (int level = MAX_DISKS - 1; level >= 0; --level) {
+        for (int t = 0; t < 3; ++t) {
+            if (heights[t] > level) {
+                // есть диск на данном уровне
+                int diskSize = (t == 0 ? tower1[level]
+                    : t == 1 ? tower2[level]
+                    : tower3[level]);
+                int stars = diskSize; // Количество звездочек
+                for (int s = 0; s < stars; ++s) cout << "*";
+                for (int s = stars; s < MAX_DISKS; ++s) cout << " ";
+            }
+            else {
+                // пробел
+                for (int s = 0; s < MAX_DISKS; ++s) cout << " ";
+            }
+            cout << "   ";
+        }
+        cout << "\n";
+    }
+
+    // подписываем башни
+    cout << " 1    " << " 2    " << " 3\n\n";
+    this_thread::sleep_for(chrono::milliseconds(500)); // задержка для анимации
+}
+
+// перенос диска с одной башни на другую
+void moveDisk(int from, int to) {
+    int disk = 0;
+    switch (from) {
+    case 1: disk = tower1[--heights[0]]; break;
+    case 2: disk = tower2[--heights[1]]; break;
+    case 3: disk = tower3[--heights[2]]; break;
+    }
+
+    switch (to) {
+    case 1: tower1[heights[0]++] = disk; break;
+    case 2: tower2[heights[1]++] = disk; break;
+    case 3: tower3[heights[2]++] = disk; break;
+    }
+
+    printTowers();
+}
+
+void han(int n, int start, int point, int temp) {
+    if (n <= 0) return;
+    han(n - 1, start, temp, point);
+    moveDisk(start, point);
+    han(n - 1, temp, point, start);
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите количество дисков: ";
+    cin >> n;
+    if (n > MAX_DISKS) n = MAX_DISKS;
+    if (n < 1) n = 1;
+
+    // инициализация первой башни
+    for (int i = n; i >= 1; --i) {
+        tower1[n - i] = i;
+    }
+    heights[0] = n;
+
+    printTowers();
+
+    cout << "Шаги решения:\n";
+    han(n, 1, 3, 2);
+
+    return 0;
+}
+
+// 3 version
+
+#include <iostream>
+#include <clocale>
+#include <cstdlib>   // для system()
+
+using namespace std;
+
+int totalDisks;      // количество дисков
+int maxWidth;        // ширина поля для одного стержня
+int** rods;          // стержни: rods[стержень][позиция]
+int* sizes;          // количество дисков на стержне
+
+// очистка экрана
+void clearScreen() {
+    system("cls");
+}
+
+// ожидание нажатия Enter
+void waitForEnter() {
+    cout << "Нажмите Enter для продолжения...";
+    cin.ignore();   // очищаем буфер от предыдущего ввода
+    cin.get();      // ждём Enter
+    cout << endl;
+}
+
+// отрисовка текущего состояния башен
+void draw() {
+    clearScreen();
+
+    // Д=диски
+    for (int y = 0; y < totalDisks; ++y) {
+        for (int r = 0; r < 3; ++r) {
+            if (y < sizes[r]) {
+                int diskSize = rods[r][sizes[r] - 1 - y];
+                int width = 2 * diskSize - 1;
+                int padding = (maxWidth - width) / 2;
+
+                for (int i = 0; i < padding; ++i) cout << ' ';
+                for (int i = 0; i < width; ++i) cout << '*';
+                for (int i = 0; i < padding; ++i) cout << ' ';
+            }
+            else {
+                int padding = maxWidth / 2;
+                for (int i = 0; i < padding; ++i) cout << ' ';
+                cout << '|';
+                for (int i = 0; i < padding; ++i) cout << ' ';
+            }
+            cout << "   ";   // разделитель между стержнями
+        }
+        cout << '\n';
+    }
+
+    // основание
+    for (int r = 0; r < 3; ++r) {
+        for (int i = 0; i < maxWidth; ++i) cout << '=';
+        cout << "   ";
+    }
+    cout << '\n';
+
+    // подписи стержней 1, 2, 3
+    for (int r = 0; r < 3; ++r) {
+        int padding = maxWidth / 2;
+        for (int i = 0; i < padding; ++i) cout << ' ';
+        cout << (r + 1);
+        for (int i = 0; i < padding; ++i) cout << ' ';
+        cout << "   ";
+    }
+    cout << "\n\n";
+}
+
+// рекурсивный алгоритм Ханойской башни
+void hanoi(int n, int from, int to, int aux) {
+    if (n == 1) {
+        int disk = rods[from][sizes[from] - 1];
+        sizes[from]--;
+        rods[to][sizes[to]] = disk;
+        sizes[to]++;
+        draw();
+        waitForEnter();
+        return;
+    }
+
+    hanoi(n - 1, from, aux, to);
+
+    int disk = rods[from][sizes[from] - 1];
+    sizes[from]--;
+    rods[to][sizes[to]] = disk;
+    sizes[to]++;
+    draw();
+    waitForEnter();
+
+    hanoi(n - 1, aux, to, from);
+}
+
+// инициализация памяти и начального состояния
+void init(int n) {
+    totalDisks = n;
+    maxWidth = 2 * n + 1;
+
+    rods = new int* [3];
+    for (int i = 0; i < 3; ++i)
+        rods[i] = new int[n];
+
+    sizes = new int[3];
+    sizes[0] = sizes[1] = sizes[2] = 0;
+
+    // заполняем первый стержень: самый большой диск (n) внизу
+    for (int i = n; i >= 1; --i) {
+        rods[0][sizes[0]] = i;
+        sizes[0]++;
+    }
+}
+
+// освобождение памяти
+void cleanup() {
+    for (int i = 0; i < 3; ++i)
+        delete[] rods[i];
+    delete[] rods;
+    delete[] sizes;
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите количество дисков (1-8): ";
+    cin >> n;
+
+    if (n < 1) {
+        cout << "Число дисков должно быть положительным.\n";
+        cout << "Нажмите Enter для выхода...";
+        cin.ignore();
+        cin.get();
+        return 1;
+    }
+
+    if (n > 8) {
+        cout << "Слишком много дисков! Продолжить? (yes/no): ";
+        char ans;
+        cin >> ans;
+        if (ans != 'yes' && ans != 'Yes') {
+            cout << "Нажмите Enter для выхода...";
+            cin.ignore();
+            cin.get();
+            return 0;
+        }
+    }
+
+    init(n);
+    draw();
+    cout << "Начальное состояние. ";
+    waitForEnter();
+
+    cout << "Начальное перемещение...\n";
+    hanoi(n, 0, 2, 1);
+
+    cout << "Готово! Все диски на стержне 3.\n";
+    cleanup();
+    waitForEnter();
+    return 0;
+}
+//
