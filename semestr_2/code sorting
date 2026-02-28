@@ -1,0 +1,140 @@
+// pyzirek
+
+#include <iostream>
+#include <clocale>
+#include <cstdlib>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите размер массива: ";
+    cin >> n;
+    int arr[50];
+    for (int i = 0; i < n; i++) {
+        arr[i] = 1 + rand() % 100;
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+
+    int step = 1; // счетчик шагов сортировки
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+
+                // вывод текущего шага сортировки
+                cout << "Шаг " << step << ": ";
+                for (int k = 0; k < n; k++) {
+                    cout << arr[k] << " ";
+                }
+                cout << endl;
+                step++;
+            }
+        }
+    }
+
+    cout << "Отсортированный массив: ";
+    for (int i = 0; i < n; i++) {
+        cout << arr[i] << " ";
+    }
+    return 0;
+}
+
+// vibor
+
+#include <iostream>
+#include <clocale>
+#include <cstdlib>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите размер массива: ";
+    cin >> n;
+    int arr[50];
+    for (int i = 0; i < n; i++) {
+        arr[i] = 1 + rand() % 100;
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+
+    int step = 1; // счетчик шагов сортировки
+
+    for (int i = 0; i < n - 1; i++) {
+        int min = i;
+        for (int j = i + 1; j < n; j++) {
+            if (arr[min] > arr[j]) {
+                min = j;
+            }
+        }
+        if (min != i) {
+            int temp = arr[i];
+            arr[i] = arr[min];
+            arr[min] = temp;
+
+            // вывод текущего шага и состояния массива
+            cout << "Шаг " << step << ": ";
+            for (int k = 0; k < n; k++) {
+                cout << arr[k] << " ";
+            }
+            cout << endl;
+            step++;
+        }
+    }
+
+    cout << "Отсортированный массив: ";
+    for (int i = 0; i < n; i++) {
+        cout << arr[i] << " ";
+    }
+    return 0;
+}
+
+// vstavki
+
+#include <iostream>
+#include <clocale>
+#include <cstdlib>
+using namespace std;
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите размер массива: ";
+    cin >> n;
+    int arr[50];
+    for (int i = 0; i < n; i++) {
+        arr[i] = 1 + rand() % 100;
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+
+    int step = 1; // счетчик шагов
+
+    for (int i = 1; i < n; i++) {
+        for (int j = i; j > 0; j--) {
+            if (arr[j] < arr[j - 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j - 1];
+                arr[j - 1] = temp;
+
+                // вывод номера шага и текущего состояния массива
+                cout << "Шаг " << step << ": ";
+                for (int k = 0; k < n; k++) {
+                    cout << arr[k] << " ";
+                }
+                cout << endl;
+                step++;
+            }
+        }
+    }
+    cout << "Отсортированный массив: ";
+    for (int i = 0; i < n; i++) {
+        cout << arr[i] << " ";
+    }
+    return 0;
+}
+
