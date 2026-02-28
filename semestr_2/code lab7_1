@@ -1,0 +1,52 @@
+#include <iostream>
+#include <string>
+#include <clocale>
+using namespace std;
+
+// перегруженная функция для массива целых чисел
+int f(int n, int a[]) {
+    int c = 0;
+    for (int i = 0; i < n; ++i) {
+        if (a[i] % 2 != 0) {
+            ++c;
+        }
+    }
+    return c;
+}
+
+// перегруженная функция для строки
+int f(const string& str) {
+    int c = 0;
+    bool w = false;
+    for (int i = 0; i < str.length(); ++i) {
+        // проверяем, является ли символ пробелом
+        if (str[i] == ' ') {
+            if (w) {
+                w = false; // слово закончилось
+            }
+        }
+        else {
+            if (!w) {
+                w = true; // начинаем новое слово
+                ++c;
+            }
+        }
+    }
+    return c;
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    // для массива целых чисел
+    int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+    int size = sizeof(arr) / sizeof(arr[0]);
+    cout << "Количество нечетных элементов: " << f(size, arr) << endl;
+
+    // для строки
+    string text;
+    cout << "Введите строку: ";
+    getline(cin, text);
+    cout << "Количество слов в строке: " << f(text) << endl;
+
+    return 0;
+}
