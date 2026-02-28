@@ -1,3 +1,5 @@
+// 1 version
+
 #include <iostream>
 #include <string>
 #include <clocale>
@@ -58,6 +60,93 @@ int main() {
         for (int j = 0; j < c; j++) { // индекс для вложенного цикла, ищущий совпадения текущего слова в массиве words
             if (words[i] == words[j]) {
                 cnt++; // счетчик количества вхождений текущего слова в массив words
+            }
+        }
+        if (cnt == 1) {
+            if (!f) {
+                cout << ", ";
+            }
+            cout << words[i];
+            f = false;
+            p[i] = true; // помечаем как выведенное
+        }
+    }
+    cout << endl;
+
+    return 0;
+}
+
+// 2 version
+
+#include <iostream>
+#include <string>
+#include <clocale>
+#include <cctype> // для isdigit
+
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    cout << "Введите строку: ";
+    string s;
+    getline(cin, s);
+
+    // проверка на наличие цифр в строке
+    bool h = false;
+    for (int i = 0; i < s.length(); i++) {
+        char ch = s[i];
+        if (isdigit(ch)) {
+            h = true;
+            break;
+        }
+    }
+    if (h) {
+        cout << "В строке не может быть цифр." << endl;
+        return 0;
+    }
+
+    // удаляем точку в конце строки, если она есть
+    if (!s.empty() && s.back() == '.') {
+        s.pop_back();
+    }
+
+    int len = s.length();
+
+    // разделяем строку на слова
+    string words[255]; // максимум 255 слов
+    int c = 0;
+
+    int i = 0;
+    while (i < len) {
+        // пропускаем пробелы
+        while (i < len && s[i] == ' ') {
+            i++;
+        }
+        // собираем слово
+        string w = "";
+        while (i < len && s[i] != ' ') {
+            w += s[i];
+            i++;
+        }
+        if (!w.empty()) {
+            words[c] = w;
+            c++;
+        }
+    }
+
+    // создаем массив со флагом для отметки уже выведенных слов
+    bool p[255] = { false };
+
+    // выводим слова, встречающиеся только один раз
+    cout << "Слова, встречающееся один раз: ";
+    bool f = true; // чтобы не ставить запятую перед первым словом
+
+    for (int i = 0; i < c; i++) {
+        if (p[i]) continue; // уже выведено
+        int cnt = 0;
+        for (int j = 0; j < c; j++) {
+            if (words[i] == words[j]) {
+                cnt++;
             }
         }
         if (cnt == 1) {
