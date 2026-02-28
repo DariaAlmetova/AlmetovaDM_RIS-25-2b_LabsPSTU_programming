@@ -1,0 +1,59 @@
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+const int size_arr = 8; // размер доски (8x8)
+int arr[size_arr][size_arr]{}; // массив, представляющий доску, инициализирован нулями
+int a = 0; // счетчик успешных размещений ферзей
+
+// функция отображения доски
+void show() {
+    for (int i = 0; i < size_arr; i++) {
+        for (int j = 0; j < size_arr; j++) {
+            cout << (arr[i][j] ? "! " : "# "); // "!" - ферзь, "#" - пустая клетка
+        }
+        cout << endl;
+    }
+}
+
+// проверка, можно ли разместить ферзя в позицию (row, col)
+bool check(int row, int col) {
+    // проверка выше по столбцу
+    for (int i = 0; i < row; i++)
+        if (arr[i][col]) return false;
+
+    // проверка по диагонали слева вверх
+    for (int i = 1; row - i >= 0 && col - i >= 0; i++)
+        if (arr[row - i][col - i]) return false;
+
+    // проверка по диагонали справа вверх
+    for (int i = 1; row - i >= 0 && col + i < size_arr; i++)
+        if (arr[row - i][col + i]) return false;
+
+    return true;
+}
+
+// рекурсивная функция размещения ферзей
+void ferz(int row) {
+    if (row == size_arr) {
+        // найденное решение
+        cout << "Размещение #" << ++a << endl << endl;
+        show();
+        cout << endl;
+        return;
+    }
+
+    for (int col = 0; col < size_arr; col++) {
+        if (check(row, col)) {
+            arr[row][col] = 1; // размещаем ферзя
+            ferz(row + 1); // переходим к следующей строке
+            arr[row][col] = 0; // убираем ферзя
+        }
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    ferz(0);
+    return 0;
+}
