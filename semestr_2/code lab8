@@ -1,0 +1,249 @@
+#include <iostream>
+#include <fstream>
+#include <cstring>
+#include <clocale>
+#include <iomanip>
+
+using namespace std;
+
+const int m = 100; // максимальное число владельцев
+
+// структура владельца автомобиля
+struct Owner {
+    char surname[50]; // фамилия
+    char name[50]; // имя
+    char patronymic[50]; // отчество
+    char car[20]; // номер автомобиля
+    int tech; // номер техпаспорта
+    char registration[50]; // отделение регистрации ГАИ
+};
+
+// функция формирования двоичного файла из массива владельцев
+void binf(const char* file, Owner owners[], int size) {
+    ofstream ofs(file, ios::binary);
+    if (!ofs) {
+        cout << "Ошибка: не удалось открыть файл для записи.\n";
+        return;
+    }
+    for (int i = 0; i < size; i++) {
+        ofs.write((const char*)&owners[i], sizeof(Owner));
+        if (!ofs) {
+            cout << "Ошибка при записи в файл.\n";
+            return;
+        }
+    }
+    ofs.close();
+}
+
+// функция вывода таблицы
+void print(const char* file) {
+    ifstream ifs(file, ios::binary);
+    if (!ifs) {
+        cout << "Ошибка: не удалось открыть файл для чтения.\n";
+        return;
+    }
+
+    // заголовки с выравниванием
+    cout << left
+        << setw(12) << "Фамилия"
+        << setw(12) << "Имя"
+        << setw(12) << "Отчество"
+        << setw(15) << "Авто"
+        << setw(15) << "Техпаспорт"
+        << setw(15) << "Рег. отдел" << "\n";
+
+    // разделитель
+    cout << string(80, '-') << "\n";
+
+    Owner owner;
+    while (ifs.read((char*)&owner, sizeof(Owner))) {
+        cout << left
+            << setw(12) << owner.surname
+            << setw(12) << owner.name
+            << setw(12) << owner.patronymic
+            << setw(15) << owner.car
+            << setw(15) << owner.tech
+            << setw(15) << owner.registration
+            << "\n";
+    }
+
+    ifs.close();
+}
+
+// функция для записи данных в файл в виде таблицы
+void writef(const char* fileb, const char* filet) {
+    ifstream ifs(fileb, ios::binary);
+    if (!ifs) {
+        cout << "Ошибка: не удалось открыть файл для чтения.\n";
+        return;
+    }
+
+    ofstream ofstxt(filet);
+    if (!ofstxt) {
+        cout << "Ошибка: не удалось открыть файл для записи.\n";
+        return;
+    }
+
+    // заголовки с выравниванием
+    ofstxt << left
+        << setw(12) << "Фамилия"
+        << setw(12) << "Имя"
+        << setw(12) << "Отчество"
+        << setw(15) << "Авто"
+        << setw(15) << "Техпаспорт"
+        << setw(15) << "Рег. отдел" << "\n";
+
+    // разделитель
+    ofstxt << string(80, '-') << "\n";
+
+    Owner owner;
+    while (ifs.read((char*)&owner, sizeof(Owner))) {
+        ofstxt << left
+            << setw(12) << owner.surname
+            << setw(12) << owner.name
+            << setw(12) << owner.patronymic
+            << setw(15) << owner.car
+            << setw(15) << owner.tech
+            << setw(15) << owner.registration
+            << "\n";
+    }
+
+    ifs.close();
+    ofstxt.close();
+}
+
+// функция удаления по номеру автомобиля
+void deletec(const char* file, const char* target) {
+    Owner owners[m];
+    int count = 0;
+    bool found = false;
+
+    ifstream ifs(file, ios::binary);
+    if (!ifs) {
+        cout << "Ошибка: не удалось открыть файл для чтения.\n";
+        return;
+    }
+
+    Owner owner;
+    while (ifs.read((char*)&owner, sizeof(Owner))) {
+        if (count >= m) {
+            cout << "Превышен лимит массива.\n";
+            break;
+        }
+        if (strcmp(owner.car, target) != 0) {
+            owners[count++] = owner;
+        }
+        else {
+            found = true;
+        }
+    }
+    ifs.close();
+
+    if (!found) {
+        cout << "Элемент с номером автомобиля " << target << " не найден.\n";
+        return;
+    }
+
+    ofstream ofs(file, ios::binary);
+    if (!ofs) {
+        cout << "Ошибка: не удалось открыть файл для записи.\n";
+        return;
+    }
+    for (int i = 0; i < count; i++) {
+        ofs.write((const char*)&owners[i], sizeof(Owner));
+        if (!ofs) {
+            cout << "Ошибка при записи в файл.\n";
+            return;
+        }
+    }
+    ofs.close();
+}
+
+// вставка двух элементов перед фамилией
+void insertb(const char* file, const char* targetsur, Owner newOwner1, Owner newOwner2) {
+    Owner owners[m];
+    int count = 0;
+    bool inserted = false;
+
+    ifstream ifs(file, ios::binary);
+    if (!ifs) {
+        cout << "Ошибка: не удалось открыть файл для чтения.\n";
+        return;
+    }
+
+    Owner owner;
+    while (ifs.read((char*)&owner, sizeof(Owner))) {
+        if (count >= m) {
+            cout << "Превышен лимит массива.\n";
+            break;
+        }
+        if (!inserted && strcmp(owner.surname, targetsur) == 0) {
+            owners[count++] = newOwner1;
+            owners[count++] = newOwner2;
+            inserted = true;
+        }
+        owners[count++] = owner;
+    }
+    ifs.close();
+
+    if (!inserted) {
+        cout << "Фамилия " << targetsur << " не найдена. Элементы не добавлены.\n";
+        return;
+    }
+
+    ofstream ofs(file, ios::binary);
+    if (!ofs) {
+        cout << "Ошибка: не удалось открыть файл для записи.\n";
+        return;
+    }
+    for (int i = 0; i < count; i++) {
+        ofs.write((const char*)&owners[i], sizeof(Owner));
+        if (!ofs) {
+            cout << "Ошибка при записи в файл.\n";
+            return;
+        }
+    }
+    ofs.close();
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    const char* fileb = "owners.bin"; // двоичный файл
+    const char* filet = "result.txt"; // текстовый файл с результатом
+
+    // исходный массив владельцев
+    Owner owners[m] = {
+        {"Иванов", "Иван", "Иванович", "A123BC", 123456, "ГАИ-1"},
+        {"Петров", "Петр", "Петрович", "B456CD", 654321, "ГАИ-2"},
+        {"Сидоров", "Сидор", "Сидорович", "C789DE", 112233, "ГАИ-3"}
+    };
+    int size = 3;
+
+    // формирование файла
+    binf(fileb, owners, size);
+
+    // печать оригинального содержимого файла
+    cout << "Первоначальное содержимое файла:\n" << endl;
+    print(fileb);
+
+    // запись данных в текстовый файл
+    writef(fileb, filet);
+
+    // вставка двух элементов перед фамилией "Петров"
+    Owner newOwner1 = { "Новиков", "Николай", "Николаевич", "D012EF", 445566, "ГАИ-4" };
+    Owner newOwner2 = { "Морозов", "Мороз", "Морозович", "E345GH", 778899, "ГАИ-5" };
+    insertb(fileb, "Петров", newOwner1, newOwner2);
+
+    // обновляем текстовый файл после вставки
+    writef(fileb, filet);
+    cout << "\nПосле вставки перед фамилией Петров:\n" << endl;
+    print(fileb);
+
+    // удаление по номеру автомобиля
+    deletec(fileb, "B456CD");
+    writef(fileb, filet);
+    cout << "\nПосле удаления элемента с номером B456CD:\n" << endl;
+    print(fileb);
+
+    return 0;
+}
