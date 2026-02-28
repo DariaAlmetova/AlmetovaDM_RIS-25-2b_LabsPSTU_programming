@@ -1,0 +1,147 @@
+// 1 version
+
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+const int m = 100; // максимальный размер стека
+
+int stack[m];
+int top = -1; // индекс вершины стека, -1 означает пустой стек
+
+// функция добавления элемента
+void push(int a) {
+    if (top < m - 1) {
+        stack[++top] = a;
+        cout << "Добавлен элемент: " << a << endl;
+        // Печать стека
+        cout << "Текущий стек: ";
+        for (int i = top; i >= 0; i--) {
+            cout << stack[i] << " ";
+        }
+        cout << endl << endl;
+    }
+    else {
+        cout << "Стек полон, невозможно добавить элемент." << endl;
+    }
+}
+
+// функция удаления элемента
+void pop() {
+    if (top >= 0) {
+        int r = stack[top--]; // хранит значение удаляемого элемента стека
+        cout << "Удален элемент: " << r << endl;
+        // Печать стека
+        cout << "Текущий стек: ";
+        if (top >= 0) {
+            for (int i = top; i >= 0; i--) {
+                cout << stack[i] << " ";
+            }
+        }
+        else {
+            cout << "Пусто";
+        }
+        cout << endl << endl;
+    }
+    else {
+        cout << "Стек пуст, нечего удалять." << endl;
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    // пример последовательных операций
+    push(10);
+    push(20);
+    pop();
+    push(30);
+    pop();
+    pop();
+    pop(); // попытка удалить из пустого стека
+
+    return 0;
+}
+
+// 2 version
+
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+const int m = 100; // максимальный размер стека
+
+int stack[m];
+int top = -1; // индекс вершины стека, -1 означает пустой стек
+
+// функция добавления элемента
+void push(int a) {
+    if (top < m - 1) {
+        stack[++top] = a;
+        cout << "Добавлен элемент: " << a << endl;
+        // Печать стека
+        cout << "Текущий стек: ";
+        for (int i = top; i >= 0; i--) {
+            cout << stack[i] << " ";
+        }
+        cout << endl << endl;
+    }
+    else {
+        cout << "Стек полон, невозможно добавить элемент." << endl;
+    }
+}
+
+// функция удаления элемента
+void pop() {
+    if (top >= 0) {
+        int r = stack[top--]; // хранит значение удаляемого элемента стека
+        cout << "Удален элемент: " << r << endl;
+        // Печать стека
+        cout << "Текущий стек: ";
+        if (top >= 0) {
+            for (int i = top; i >= 0; i--) {
+                cout << stack[i] << " ";
+            }
+        }
+        else {
+            cout << "Пусто";
+        }
+        cout << endl << endl;
+    }
+    else {
+        cout << "Стек пуст, нечего удалять." << endl;
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int c; // выбор действия
+    int num; // число для добавления/удаления
+
+    while (true) {
+        cout << "Выберите действие:\n";
+        cout << "1. Добавить элемент\n";
+        cout << "2. Удалить элемент\n";
+        cout << "3. Выйти\n";
+        cout << "Введите номер действия: ";
+        cin >> c;
+
+        switch (c) {
+        case 1:
+            cout << "Введите число для добавления: ";
+            cin >> num;
+            push(num);
+            break;
+        case 2:
+            pop();
+            break;
+        case 3:
+            cout << "Выход из программы." << endl;
+            return 0;
+        default:
+            cout << "Некорректный выбор, попробуйте снова." << endl;
+        }
+        cout << endl;
+    }
+
+    return 0;
+}
