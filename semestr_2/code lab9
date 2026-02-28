@@ -1,0 +1,88 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <clocale>
+
+using namespace std;
+
+bool isVowel(char c) {
+    c = tolower(c);
+    return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u' || c == 'y';
+}
+
+int main() {
+    setlocale(LC_ALL, "RU");
+
+    ifstream fin("F1.txt");
+    ofstream fout("F2.txt");
+
+    if (!fin) {
+        cout << "Ошибка открытия файла F1" << endl;
+        return 1;
+    }
+    if (!fout) {
+        cout << "Ошибка открытия файла F2" << endl;
+        return 1;
+    }
+
+    int m = -1; // максимальное количество гласных среди всех слов
+    int mv = -1; // номер слова с максимальным количеством гласных
+    int t = 0; // общее количество слов по всему файлу
+
+    string s; // строка для чтения из файла
+
+    while (getline(fin, s)) {
+        // подсчет количества слов в строке
+        int w = 0; // счетчик слов в текущей строке
+        int start = 0; // индекс начала текущего слова
+
+        for (int i = 0; i <= s.length(); i++) { // проходим по символам строки
+            if (i == s.length() || s[i] == ' ') {
+                if (i > start) { // если есть слово
+                    w++;
+                }
+                start = i + 1; // начинаем новое слово с следующей позиции
+            }
+        }
+
+        // проверка, более ли 2 слов
+        if (w > 2) {
+            // записываем строку
+            fout << s << endl;
+        }
+
+        start = 0; // сбрасываем начальную позицию для анализа слов в строке и для поиска слова с максимальным количеством гласных
+        for (int i = 0; i <= s.length(); i++) {
+            if (i == s.length() || s[i] == ' ') {
+                if (i > start) {
+                    string word = s.substr(start, i - start); // взять подстроку из строки s, начиная с позиции start, длиной(i - start), чтобы избежать пробелов
+                    int vow = 0; // счетчик гласных в текущем слове
+                    for (char c : word) {
+                        if (isVowel(c))
+                            vow++;
+                    }
+                    t++;
+                    if (vow > m) {
+                        m = vow;
+                        mv = t;
+                    }
+                }
+                start = i + 1;
+            }
+        }
+    }
+
+    // вывод номера слова с максимальным количеством гласных
+    if (mv != -1) {
+        fout << endl;
+        fout << "Номер слова с максимальным количеством гласных из файла F1: " << mv << endl;
+    }
+    else {
+        fout << "Не найдено слов с гласными." << endl;
+    }
+
+    fin.close();
+    fout.close();
+
+    return 0;
+}
