@@ -1,3 +1,5 @@
+// 1 version
+
 #include <iostream>
 #include <string>
 #include <clocale>
@@ -43,6 +45,74 @@ int main() {
     cout << "Количество нечетных элементов: " << f(size, arr) << endl;
 
     // для строки
+    string text;
+    cout << "Введите строку: ";
+    getline(cin, text);
+    cout << "Количество слов в строке: " << f(text) << endl;
+
+    return 0;
+}
+
+// 2 version
+
+#include <iostream>
+#include <string>
+#include <clocale>
+using namespace std;
+
+// перегруженная функция для массива целых чисел
+int f(int n, int a[]) {
+    int c = 0;
+    for (int i = 0; i < n; ++i) {
+        if (a[i] % 2 != 0) {
+            ++c;
+        }
+    }
+    return c;
+}
+
+// перегруженная функция для строки
+int f(const string& str) {
+    int c = 0;
+    bool w = false; // булева переменная, указывающая, находимся ли мы внутри слова (true) или между словами (false).
+    for (int i = 0; i < str.length(); ++i) {
+        // проверяем, является ли символ пробелом
+        if (str[i] == ' ') {
+            if (w) {
+                w = false; // слово закончилось
+            }
+        }
+        else {
+            if (!w) {
+                w = true; // начинаем новое слово
+                ++c;
+            }
+        }
+    }
+    return c;
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите размер массива: ";
+    cin >> n;
+
+    // динамическое выделение массива
+    int* arr = new int[n];
+
+    cout << "Введите " << n << " элементов массива:\n";
+    for (int i = 0; i < n; ++i) {
+        cin >> arr[i];
+    }
+
+    cout << "Количество нечетных элементов: " << f(n, arr) << endl;
+
+    // очистка памяти
+    delete[] arr;
+
+    // ввод строки
+    cin.ignore(); // очистка буфера после ввода числа
     string text;
     cout << "Введите строку: ";
     getline(cin, text);
