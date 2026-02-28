@@ -1,0 +1,63 @@
+#include <iostream>
+#include <cmath>
+#include <cstdarg>
+#include <clocale>
+
+using namespace std;
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+// функция для площади треугольника по трём сторонам (формула Герона)
+double tr(double a, double b, double c) {
+    double p = (a + b + c) / 2.0; // полупериметр
+    return sqrt(p * (p - a) * (p - b) * (p - c));
+}
+
+// общая функция для многоугольника по сторонам (переменное число параметров)
+double square(int n, ...) {
+    if (n < 3) {
+        cout << "Многоугольник должен иметь минимум 3 стороны." << endl;
+        return 0;
+    }
+
+    va_list args;
+    va_start(args, n);
+
+    // максимум 20 сторон
+    double sides[20];
+    if (n > 20) {
+        cout << "Слишком много сторон." << endl;
+        va_end(args);
+        return 0;
+    }
+
+    for (int i = 0; i < n; ++i) {
+        sides[i] = va_arg(args, double);
+    }
+    va_end(args);
+
+    // для треугольника
+    if (n == 3) {
+        return tr(sides[0], sides[1], sides[2]);
+    }
+
+    // для правильных многоугольников — пример для 5 и 8 сторон
+    if (n == 5 || n == 8) {
+        double a = sides[0];
+        double apotema = a / (2 * tan(M_PI / n));
+        return (n * a * apotema) / 2;
+    } 
+
+    cout << "Расчет площади для этого количества сторон не реализован." << endl;
+    return 1;
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    cout << "Площадь треугольника со сторонами 3, 4, 5: " << square(3, 3.0, 4.0, 5.0) << endl;
+    cout << "Площадь правильного 5-угольника со стороной 2: " << square(5, 2.0, 2.0, 2.0, 2.0, 2.0) << endl;
+    cout << "Площадь правильного 8-угольника со стороной 1: " << square(8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0) << endl;
+    return 0;
+}
