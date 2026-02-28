@@ -1,0 +1,193 @@
+// 1 version
+
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    const int ms = 50; // максимальный размер
+    int array[ms][ms];
+    int rows, cols;
+
+    // ввод количества строк и столбцов
+    cout << "Введите количество строк (не более 50): ";
+    cin >> rows;
+    cout << "Введите количество столбцов (не более 50): ";
+    cin >> cols;
+
+    if (rows > ms || cols > ms || rows <= 0 || cols <= 0) {
+        cout << "Некорректные размеры массива." << endl;
+        return 1;
+    }
+
+    // ввод элементов массива
+    cout << "Введите элементы массива:\n";
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            cin >> array[i][j];
+        }
+    }
+
+    // среднее арифметическое первого столбца
+    double s = 0; // сумма первого столбца
+    for (int i = 0; i < rows; i++) {
+        s += array[i][0];
+    }
+    double mf = s / rows; // значение среднего арифметического для первого столбца
+    cout << "Среднее арифметическое первого столбца: " << mf << endl;
+
+    // счёт для каждого следующего столбца количества элементов, превышающих среднее арифметическое предыдущего
+    for (int j = 1; j < cols; j++) {
+        int count = 0;
+        for (int i = 0; i < rows; i++) {
+            if (array[i][j] > mf) {
+                count++;
+            }
+        }
+        cout << "Количество элементов в столбце " << j + 1
+            << " превышающих среднее предыдущего столбца: " << count << endl;
+        // обновление среднего арифметического для текущего столбца, чтобы использовать его для следующего
+        double sum = 0;
+        for (int i = 0; i < rows; i++) {
+            sum += array[i][j];
+        }
+        mf = sum / rows; // счёт среднего арифметического по текущему столбцу, чтобы при следующем цикле сравнивать с ним
+    }
+
+    return 0;
+}
+
+// 2 version
+
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+// функция для вычисления среднего арифметического столбца
+double a(int array[][50], int rows, int col) {
+    double sum = 0;
+    for (int i = 0; i < rows; i++) {
+        sum += array[i][col];
+    }
+    return sum / rows;
+}
+
+// функция для подсчёта элементов в столбце, превышающих заданное значение
+int c(int array[][50], int rows, int col, double avg) {
+    int count = 0;
+    for (int i = 0; i < rows; i++) {
+        if (array[i][col] > avg) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// основная функция
+void pro(int array[][50], int rows, int cols) {
+    // вычисление среднего первого столбца
+    double prev = a(array, rows, 0);
+    cout << "Среднее арифметическое первого столбца: " << prev << endl;
+
+    // обработка последующих столбцов
+    for (int j = 1; j < cols; j++) {
+        int count = c(array, rows, j, prev);
+        cout << "Количество элементов в столбце " << j + 1
+            << " превышающих среднее предыдущего столбца: " << count << endl;
+        prev = a(array, rows, j);
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    const int ms = 50;
+    int array[ms][ms];
+    int rows, cols;
+
+    // ввод размеров массива
+    cout << "Введите количество строк (не более 50): ";
+    cin >> rows;
+    cout << "Введите количество столбцов (не более 50): ";
+    cin >> cols;
+
+    if (rows > ms || cols > ms || rows <= 0 || cols <= 0) {
+        cout << "Некорректные размеры массива." << endl;
+        return 1;
+    }
+
+    // ввод элементов массива
+    cout << "Введите элементы массива:\n";
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            cin >> array[i][j];
+        }
+    }
+
+    // вызов функции обработки массива
+    pro(array, rows, cols);
+
+    return 0;
+}
+
+// 3 version
+
+#include <iostream>
+#include <clocale>
+#include <cstdlib> // для rand()
+
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+
+    const int ms = 50; // максимальный размер
+    int array[ms][ms];
+    int rows, cols;
+
+    // ввод размеров массива
+    cout << "Введите количество строк (не более 50): ";
+    cin >> rows;
+    cout << "Введите количество столбцов (не более 50): ";
+    cin >> cols;
+
+    if (rows > ms || cols > ms || rows <= 0 || cols <= 0) {
+        cout << "Некорректные размеры массива." << endl;
+        return 1;
+    }
+
+    // заполнение массива случайными числами
+    cout << "Массив, заполненный случайными числами:\n";
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            array[i][j] = 1 + rand() % 100; // случайные числа от 1 до 100
+            cout << array[i][j] << "\t";
+        }
+        cout << endl;
+    }
+
+    double s = 0; // сумма первого столбца
+    for (int i = 0; i < rows; i++) {
+        s += array[i][0];
+    }
+    double mf = s / rows; // значение среднего арифметического для первого столбца
+    cout << "Среднее арифметическое первого столбца: " << mf << endl;
+
+    for (int j = 1; j < cols; j++) {
+        int count = 0;
+        for (int i = 0; i < rows; i++) {
+            if (array[i][j] > mf) {
+                count++;
+            }
+        }
+        cout << "Количество элементов в столбце " << j + 1
+            << " превышающих среднее предыдущего столбца: " << count << endl;
+        double sum = 0;
+        for (int i = 0; i < rows; i++) {
+            sum += array[i][j];
+        }
+        mf = sum / rows;
+    }
+
+    return 0;
+}
