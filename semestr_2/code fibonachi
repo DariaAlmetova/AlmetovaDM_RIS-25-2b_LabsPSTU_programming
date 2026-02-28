@@ -1,0 +1,25 @@
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+int fib(int n) {
+    if (n == 1)
+        return 0;
+    if (n == 2)
+        return 1;
+    return fib(n - 1) + fib(n - 2);
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Введите количество чисел Фибоначчи: ";
+    cin >> n;
+
+    for (int i = 1; i <= n; i++) {
+        cout << fib(i) << " ";
+    }
+
+    cout << endl;
+    return 0;
+}
