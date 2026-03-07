@@ -1,0 +1,550 @@
+#include <iostream>
+#include <fstream>
+#include <clocale>
+using namespace std;
+
+// структура узла однонаправленного списка
+struct Node {
+    char key[100]; // массив символов для хранения значения
+    Node* next; // указатель на следующий узел
+};
+
+// структура узла двунаправленного списка
+struct NodeDouble {
+    char key[100];
+    NodeDouble* next;
+    NodeDouble* prev; // указатель на предыдущий узел
+};
+
+// структуры списков
+struct List {
+    Node* head = nullptr; // головной узел списка
+    Node* tail = nullptr; // хвостовой узел списка
+};
+struct ListDouble {
+    NodeDouble* head = nullptr;
+    NodeDouble* tail = nullptr;
+};
+
+// создание узлов
+Node* createNode(const char* str) { // передаётся строка
+    Node* new_node = new Node; // выделяется новая область памяти для узла
+    int i = 0;
+    while (str[i] != '\0' && i < 99) { // копируем символы из входящей строки в key
+        new_node->key[i] = str[i]; 
+        i++;
+    }
+    new_node->key[i] = '\0'; // завершаем копирование символом конца строки
+    new_node->next = nullptr; // по умолчанию следующий узел отсутствует
+    return new_node; // возвращаем созданный узел
+}
+NodeDouble* createNodeDouble(const char* str) {
+    NodeDouble* new_node = new NodeDouble;
+    int i = 0;
+    while (str[i] != '\0' && i < 99) {
+        new_node->key[i] = str[i];
+        i++;
+    }
+    new_node->key[i] = '\0';
+    new_node->next = nullptr; // следующего узла пока нет
+    new_node->prev = nullptr; // предыдущего узла тоже нет
+    return new_node;
+}
+
+// инициализация списков
+void initList(List& list) {
+    list.head = nullptr; list.tail = nullptr; // head и tail устанавливаются в nullptr, означая отсутствие головного и хвостового узла.
+}
+void initListDouble(ListDouble& list) {
+    list.head = nullptr; list.tail = nullptr; // то же самое, только для двунаправленного списка
+}
+
+// добавление в конец
+void pushBack(List& list, const char* key) {
+    Node* new_node = createNode(key); // создаем новый узел с указанным ключом
+    if (!list.head) { // если список пуст
+        list.head = list.tail = new_node; // новый узел становится и началом, и концом списка
+    }
+    else {
+        list.tail->next = new_node; // связываем старый хвост с новым узлом
+        list.tail = new_node; // новый узел становится новым хвостом
+    }
+}
+void pushBackDouble(ListDouble& list, const char* key) {
+    NodeDouble* new_node = createNodeDouble(key);
+    if (!list.head) {
+        list.head = list.tail = new_node;
+    }
+    else {
+        list.tail->next = new_node;
+        new_node->prev = list.tail;
+        list.tail = new_node;
+    }
+}
+
+// добавление в начало
+void pushFront(List& list, const char* key) {
+    Node* new_node = createNode(key); // создаем новый узел
+    new_node->next = list.head; // ставим его перед текущим первым узлом
+    list.head = new_node; // назначаем новый узел новым началом списка
+    if (!list.tail) list.tail = new_node; // если список был пуст, устанавливаем хвост
+}
+void pushFrontDouble(ListDouble& list, const char* key) {
+    NodeDouble* new_node = createNodeDouble(key);
+    new_node->next = list.head;
+    if (list.head) list.head->prev = new_node;
+    list.head = new_node;
+    if (!list.tail) list.tail = new_node;
+}
+
+// вывод списков
+void printList(const List& list) {
+    Node* curr = list.head; // начинаем с первого узла
+    if (!curr) { cout << "Список пустой.\n"; return; } // если список пуст
+    while (curr) { // пока есть узлы
+        cout << curr->key << " "; // выводим значение текущего узла
+        curr = curr->next; // переходим к следующему узлу
+    }
+    cout << "\n";
+}
+void printListDouble(const ListDouble& list) {
+    NodeDouble* curr = list.head;
+    if (!curr) { cout << "Двунаправленный список пустой.\n"; return; }
+    while (curr) {
+        cout << curr->key << " ";
+        curr = curr->next;
+    }
+    cout << "\n";
+}
+
+// удаление из начала
+void popFront(List& list) {
+    if (!list.head) return; // если список пуст, выход
+    Node* tmp = list.head; // берём указатель на текущий первый узел
+    list.head = list.head->next; // переносим голову на следующий узел
+    if (tmp == list.tail) list.tail = nullptr; // если удалённый узел был единственным, хвост обнуляем
+    delete tmp; // освобождаем память занятую удалённым узлом
+}
+void popFrontDouble(ListDouble& list) {
+    if (!list.head) return;
+    NodeDouble* tmp = list.head;
+    list.head = list.head->next;
+    if (list.head) list.head->prev = nullptr; else list.tail = nullptr;
+    delete tmp;
+}
+
+// удаление из конца
+void popBack(List& list) {
+    if (!list.head) return;
+    if (list.head == list.tail) { // если в списке всего один узел
+        delete list.head; list.head = list.tail = nullptr; return; // удаляем его и сбрасываем указатели
+    }
+    Node* curr = list.head; // начало поиска предпоследнего узла
+    while (curr->next != list.tail) curr = curr->next; // ищем предпоследний узел
+    delete list.tail; // удаляем текущий хвост
+    curr->next = nullptr; // последним становимся найденный узел
+    list.tail = curr; // обновляем указатель хвоста
+}
+void popBackDouble(ListDouble& list) {
+    if (!list.head) return;
+    if (list.head == list.tail) {
+        delete list.head; list.head = list.tail = nullptr; return;
+    }
+    NodeDouble* curr = list.head;
+    while (curr->next != list.tail) curr = curr->next;
+    delete list.tail;
+    curr->next = nullptr;
+    list.tail = curr;
+}
+
+// удаление по ключу
+bool deleteByKey(List& list, const char* key) {
+    Node* curr = list.head; // начнём с головы списка
+    Node* prev = nullptr; // инициализируем указатель на предыдущий узел
+    while (curr) { // проходим по всем узлам
+        if (strcmp(curr->key, key) == 0) { // нашли искомый узел. если строки равны, функция вернёт 0. сравнение строки, хранимой в поле key текущего узла, с заданной строкой (key)
+            if (prev) prev->next = curr->next; else list.head = curr->next; // подключаем предыдущий узел к следующему. если узел первый, меняем голову
+            if (curr == list.tail) list.tail = prev; // если удаляли хвост, меняем хвост
+            delete curr; return true; // освобождаем память и возвращаем true
+        }
+        prev = curr; curr = curr->next; // сохраняем предыдущий узел и переходим к следующему узлу
+    }
+    return false; // не нашли элемент с таким ключом
+}
+bool deleteByKeyDouble(ListDouble& list, const char* key) {
+    NodeDouble* curr = list.head;
+    while (curr) {
+        if (strcmp(curr->key, key) == 0) {
+            if (curr->prev) curr->prev->next = curr->next; else list.head = curr->next;
+            if (curr->next) curr->next->prev = curr->prev; else list.tail = curr->prev;
+            delete curr; return true;
+        }
+        curr = curr->next;
+    }
+    return false;
+}
+
+// вставка K элементов перед элементом с ключом (однонаправленный и двунаправленный)
+void insertBeforeKey(List& list, const char* key, int K, const char* new_keys[]) {
+    Node* curr = list.head; // начинаем с головы списка
+    while (curr) { // перебираем весь список
+        if (strcmp(curr->key, key) == 0) { // если нашли нужный ключ
+            for (int j = 0; j < K; j++) { // вставляем K новых элементов
+                Node* new_node = createNode(new_keys[j]); // создаём новый узел
+                new_node->next = curr; // подключаем его перед текущим узлом
+                if (curr == list.head) { // если текущий узел - голова
+                    list.head = new_node; // новый узел становится новой головой
+                }
+                else {
+                    // найти предыдущий
+                    Node* temp = list.head;
+                    while (temp->next != curr) temp = temp->next;
+                    temp->next = new_node; // соединяем предыдущий узел с новым
+                }
+            }
+            return;
+        }
+        curr = curr->next; // переходим к следующему узлу
+    }
+}
+void insertBeforeKeyDouble(ListDouble& list, const char* key, int K, const char* new_keys[]) {
+    NodeDouble* curr = list.head;
+    while (curr) {
+        if (strcmp(curr->key, key) == 0) {
+            for (int j = 0; j < K; j++) {
+                NodeDouble* new_node = createNodeDouble(new_keys[j]);
+                new_node->next = curr;
+                new_node->prev = curr->prev;
+                if (curr->prev) curr->prev->next = new_node; else list.head = new_node;
+                curr->prev = new_node;
+            }
+            return;
+        }
+        curr = curr->next;
+    }
+}
+
+// запись списков в файл
+void saveListToFile(const List& list, const char* filename) {
+    ofstream ofs(filename); // открытие файла для записи
+    Node* curr = list.head; // начинаем с первого узла
+    while (curr) { // перебираем все узлы
+        ofs << curr->key << "\n"; // записываем ключ узла в файл с переводом строки
+        curr = curr->next; // переходим к следующему узлу
+    }
+}
+void saveListDoubleToFile(const ListDouble& list, const char* filename) {
+    ofstream ofs(filename);
+    NodeDouble* curr = list.head;
+    while (curr) {
+        ofs << curr->key << "\n";
+        curr = curr->next;
+    }
+}
+
+// восстановление из файла
+void loadListFromFile(List& list, const char* filename) {
+    // очистка
+    Node* curr = list.head;
+    while (curr) {
+        Node* tmp = curr;
+        curr = curr->next;
+        delete tmp;
+    }
+    list.head = list.tail = nullptr; // сбрасываем указатели
+    ifstream ifs(filename); // читаем данные из файла
+    char buf[100]; // буфер
+    while (ifs.getline(buf, 100)) { // читаем строки из файла
+        pushBack(list, buf); // добавляем прочитанное значение в конец списка
+    }
+}
+void loadListDoubleFromFile(ListDouble& list, const char* filename) {
+    // очистка
+    NodeDouble* curr = list.head;
+    while (curr) {
+        NodeDouble* tmp = curr;
+        curr = curr->next;
+        delete tmp;
+    }
+    list.head = list.tail = nullptr;
+    ifstream ifs(filename);
+    char buf[100];
+    while (ifs.getline(buf, 100)) {
+        pushBackDouble(list, buf);
+    }
+}
+
+// уничтожение списков
+void destroyList(List& list) {
+    Node* curr = list.head;
+    while (curr) {
+        Node* tmp = curr;
+        curr = curr->next;
+        delete tmp;
+    }
+    list.head = list.tail = nullptr;
+}
+void destroyListDouble(ListDouble& list) {
+    NodeDouble* curr = list.head;
+    while (curr) {
+        NodeDouble* tmp = curr;
+        curr = curr->next;
+        delete tmp;
+    }
+    list.head = list.tail = nullptr;
+}
+
+// вставка элемента по индексу (однонаправленный)
+void insertAt(List& list, int index, const char* key) {
+    if (index == 0) { 
+        pushFront(list, key); // вставляем в начало списка
+        return;
+    }
+    Node* curr = list.head; // начало списка
+    int i = 0;
+    while (curr != nullptr && i < index - 1) { // идем до нужной позиции
+        curr = curr->next;
+        i++;
+    }
+    if (curr == nullptr) return; // индекс за пределами
+    Node* new_node = createNode(key); // создаем новый узел
+    new_node->next = curr->next; // подключаем новый узел после текущего
+    curr->next = new_node;
+    if (curr == list.tail) list.tail = new_node; // если вставляли в конец, обновляем хвост
+}
+
+// удаление элемента по индексу (однонаправленный)
+void deleteAt(List& list, int index) {
+    if (list.head == nullptr) return; // если список пуст, ничего не делаем
+    if (index == 0) {
+        popFront(list); // удаляем первый элемент
+        return;
+    }
+    Node* curr = list.head; // начало списка
+    int i = 0;
+    Node* prev = nullptr;
+    while (curr != nullptr && i < index) { // идем до нужного индекса
+        prev = curr;
+        curr = curr->next;
+        i++;
+    }
+    if (curr == nullptr) return; // индекс за пределами
+    prev->next = curr->next; // обновляем ссылку предыдущего узла
+    if (curr == list.tail) list.tail = prev; // если удалялся хвост, обновляем его
+    delete curr; // освобождаем память
+}
+
+// вставка элемента по индексу (двунаправленный)
+void insertAtDouble(ListDouble& list, int index, const char* key) {
+    if (index == 0) {
+        pushFrontDouble(list, key);
+        return;
+    }
+    NodeDouble* curr = list.head;
+    int i = 0;
+    while (curr != nullptr && i < index - 1) {
+        curr = curr->next;
+        i++;
+    }
+    if (curr == nullptr) return; // индекс за пределами
+    NodeDouble* new_node = createNodeDouble(key);
+    new_node->next = curr->next; // настраиваем связи нового узла
+    new_node->prev = curr;
+    if (curr->next) curr->next->prev = new_node; // если следующий узел есть, обновляем его обратную ссылку
+    curr->next = new_node; // включаем новый узел в список
+    if (curr == list.tail) list.tail = new_node; // если вставили в конец, обновляем хвост
+}
+
+// удаление элемента по индексу (двунаправленный)
+void deleteAtDouble(ListDouble& list, int index) {
+    if (list.head == nullptr) return;
+    if (index == 0) {
+        popFrontDouble(list);
+        return;
+    }
+    NodeDouble* curr = list.head;
+    int i = 0;
+    while (curr != nullptr && i < index) {
+        curr = curr->next;
+        i++;
+    }
+    if (curr == nullptr) return; // индекс за пределами
+    if (curr->prev) curr->prev->next = curr->next; // обновляем прямую ссылку предыдущего узла
+    if (curr->next) curr->next->prev = curr->prev; // обновляем обратную ссылку следующего узла
+    if (curr == list.tail) list.tail = curr->prev; // если удаляли хвост, обновляем хвост
+    delete curr;
+}
+
+int main() {
+    setlocale(LC_ALL, "rus");
+    List list; initList(list);
+    ListDouble listDouble; initListDouble(listDouble);
+
+    // добавление элементов
+    pushBack(list, "яблоко");
+    pushBack(list, "банан");
+    pushBack(list, "вишня");
+    cout << "Однонаправленный: "; printList(list);
+    pushBackDouble(listDouble, "арбуз");
+    pushBackDouble(listDouble, "груша");
+    pushBackDouble(listDouble, "дыня");
+    cout << "Двунаправленный: "; printListDouble(listDouble);
+
+    // вставка в начало
+    pushFront(list, "грейпфрут");
+    pushFront(list, "гранат");
+    cout << "Однонаправленный после добавления в начало: "; printList(list);
+    pushFrontDouble(listDouble, "мандарин");
+    pushFrontDouble(listDouble, "лимон");
+    cout << "Двунаправленный после добавления в начало: "; printListDouble(listDouble);
+
+    // удаление
+    deleteByKey(list, "банан");
+    cout << "Однонаправленный после удаления 'банан': "; printList(list);
+    deleteByKeyDouble(listDouble, "груша");
+    cout << "Двунаправленный после удаления 'груша': "; printListDouble(listDouble);
+
+    // вставка 2 элементов перед 'вишня'
+    const char* new_keys[] = { "черешня", "киви" };
+    insertBeforeKey(list, "вишня", 2, new_keys);
+    cout << "Однонаправленный после вставки перед 'вишня': "; printList(list);
+
+    const char* new_keys_d[] = { "апельсин", "виноград" };
+    insertBeforeKeyDouble(listDouble, "дыня", 2, new_keys_d);
+    cout << "Двунаправленный после вставки перед 'дыня': "; printListDouble(listDouble);
+
+    // запись и уничтожение
+    saveListToFile(list, "list.txt");
+    destroyList(list);
+    cout << "Однонаправленный после уничтожения: "; printList(list);
+    loadListFromFile(list, "list.txt");
+    cout << "Однонаправленный после восстановления: "; printList(list);
+
+    // удаление из начала и конца однонаправленного
+    popFront(list);
+    cout << "Однонаправленный после удаления из начала: "; printList(list);
+    popBack(list);
+    cout << "Однонаправленный после удаления из конца: "; printList(list);
+
+    // вставка и удаление по индексу
+    insertAt(list, 1, "клубника");
+    cout << "Однонаправленный после вставки по индексу 1: "; printList(list);
+    deleteAt(list, 1);
+    cout << "Однонаправленный после удаления по индексу 1: "; printList(list);
+
+    // аналогично для двунаправленного
+    saveListDoubleToFile(listDouble, "list_double.txt");
+    destroyListDouble(listDouble);
+
+    // восстановление и вывод
+    loadListDoubleFromFile(listDouble, "list_double.txt");
+    cout << "Двунаправленный после восстановления: "; printListDouble(listDouble);
+
+    // удаление из начала и конца двунаправленного
+    popFrontDouble(listDouble);
+    cout << "Двунаправленный после удаления из начала двунаправленного: "; printListDouble(listDouble);
+    popBackDouble(listDouble);
+    cout << "Двунаправленный после удаления из конца двунаправленного: "; printListDouble(listDouble);
+
+    // вставка и удаление по индексу двунаправленного
+    insertAtDouble(listDouble, 2, "ананас");
+    cout << "Двунаправленный после вставки по индексу 2: "; printListDouble(listDouble);
+    deleteAtDouble(listDouble, 2);
+    cout << "Двунаправленный после удаления по индексу 2: "; printListDouble(listDouble);
+
+    // очистка
+    destroyList(list);
+    destroyListDouble(listDouble);
+    return 0;
+}
+
+
+// 2 способа добавления
+
+#include <iostream>
+#include <cstring>
+#include <clocale>
+
+using namespace std;
+
+// структура узла
+struct Node {
+    char key[100]; // поле для хранения строки
+    Node* next; // следующий узел
+};
+
+// односвязный список с одной ссылкой (только на начало)
+struct ListHeadOnly {
+    Node* head = nullptr;    // головной узел
+};
+
+// односвязный список с двумя ссылками (на начало и конец)
+struct ListWithTail {
+    Node* head = nullptr;    // головной узел
+    Node* tail = nullptr;    // хвостовой узел
+};
+
+// создание узлов
+Node* createNode(const char* str) { // передаётся строка
+    Node* new_node = new Node; // выделяется новая область памяти для узла
+    int i = 0;
+    while (str[i] != '\0' && i < 99) { // копируем символы из входящей строки в key
+        new_node->key[i] = str[i];
+        i++;
+    }
+    new_node->key[i] = '\0'; // завершаем копирование символом конца строки
+    new_node->next = nullptr; // по умолчанию следующий узел отсутствует
+    return new_node; // возвращаем созданный узел
+}
+
+// добавить элемент в конец списка (1 способ)
+void pushBackHeadOnly(ListHeadOnly& list, const char* key) {
+    Node* new_node = createNode(key); // новый узел
+    if (!list.head) { // если список пуст
+        list.head = new_node; // устанавливаем голову
+    }
+    else {
+        Node* current = list.head; // начинаем с головы
+        while (current->next != nullptr) // ищем последний узел
+            current = current->next;
+        current->next = new_node; // присоединяем новый узел
+    }
+}
+
+// добавить элемент в конец списка (2 способ)
+void pushBackWithTail(ListWithTail& list, const char* key) {
+    Node* new_node = createNode(key); // новый узел
+    if (!list.head) { // если список пуст
+        list.head = new_node; // устанавливаем голову
+        list.tail = new_node; // устанавливаем хвост
+    }
+    else {
+        list.tail->next = new_node; // предыдущий хвост указывает на новый узел
+        list.tail = new_node; // обновляем хвост
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    // список с методом хранения "головной узел"
+    ListHeadOnly list1;
+    pushBackHeadOnly(list1, "яблоко");
+    pushBackHeadOnly(list1, "банан");
+    pushBackHeadOnly(list1, "вишня");
+    cout << "Список 1 (только голова): ";
+    for (Node* p = list1.head; p != nullptr; p = p->next)
+        cout << p->key << " ";
+    cout << endl;
+
+    // список с методом хранения "голова и хвост"
+    ListWithTail list2;
+    pushBackWithTail(list2, "арбуз");
+    pushBackWithTail(list2, "груша");
+    pushBackWithTail(list2, "дыня");
+    cout << "Список 2 (голова + хвост): ";
+    for (Node* p = list2.head; p != nullptr; p = p->next)
+        cout << p->key << " ";
+    cout << endl;
+
+    return 0;
+}
