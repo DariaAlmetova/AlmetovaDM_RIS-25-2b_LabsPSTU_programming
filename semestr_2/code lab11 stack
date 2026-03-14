@@ -1,0 +1,182 @@
+#include <iostream>
+#include <fstream>
+#include <cstring>
+using namespace std;
+
+// структура узла стека
+struct StackNode {
+    char key[100]; // массив символов длиной 100 — хранит строку
+    StackNode* next; // указатель на следующий узел
+};
+
+// создание узла
+StackNode* createNode(const char* str) {
+    StackNode* node = new StackNode; // выделение памяти под новый узел
+    int i = 0;
+    while (str[i] != '\0' && i < 99) { // копирование строки из str в key узла, ограничено 99 символами, чтобы оставить место для '\0'
+        node->key[i] = str[i]; // копируем символ
+        i++;
+    }
+    node->key[i] = '\0'; // добавляем нулевой терминатор
+    node->next = nullptr; // изначально следующий узел — nullptr
+    return node; // возвращаем указатель на созданный узел
+}
+
+// создание пустого стека
+void initStack(StackNode*& top) {
+    top = nullptr; // инициализация верхушки стека — пустой указатель
+}
+
+// добавление в стек
+void push(StackNode*& top, const char* key) {
+    StackNode* new_node = createNode(key); // создаем новый узел с данными
+    new_node->next = top; // у нового узла следующий — текущий верх стека
+    top = new_node; // обновляем вершину стека новым узлом
+}
+
+// удаление из стека
+void pop(StackNode*& top) {
+    if (!top) return; // если стек пуст, ничего не делаем
+    StackNode* tmp = top; // сохраняем текущий верх
+    top = top->next; // делаем следующим верхом следующий узел
+    delete tmp; // освобождаем память старого верхнего узла
+}
+
+// удаление по ключу
+bool deleteByKey(StackNode*& top, const char* key) {
+    StackNode* curr = top; // текущий узел для поиска
+    StackNode* prev = nullptr; // предыдущий узел
+    while (curr) {
+        if (strcmp(curr->key, key) == 0) { // если нашли узел с нужным ключом
+            if (prev) prev->next = curr->next; // если не первый узел, соединяем предыдущий с следующим
+            else top = curr->next; // если первый узел — обновляем вершину
+            delete curr; // удаляем найденный узел
+            return true; // успешно удалили
+        }
+        prev = curr; // сдвигаемся вперед
+        curr = curr->next; // следующий узел
+    }
+    return false; // не нашли такой узел
+}
+
+// вставка элементов перед элементом с ключом
+void insertBeforeKey(StackNode*& top, const char* key, int K, const char* new_keys[]) {
+    StackNode* curr = top; // начинаем поиск с вершины
+    while (curr) {
+        if (strcmp(curr->key, key) == 0) { // нашли узел с нужным ключом
+            // вставляем K элементов перед текущим
+            for (int j = 0; j < K; j++) {
+                StackNode* new_node = createNode(new_keys[j]); // создаем новый узел
+                if (curr == top) { // если вставляем перед вершиной, обновляем top
+                    new_node->next = top;
+                    top = new_node;
+                }
+                else {
+                    // ищем предыдущий узел
+                    StackNode* temp = top;
+                    while (temp->next != curr) temp = temp->next;
+                    new_node->next = curr; // вставляем перед curr
+                    temp->next = new_node; // связываем предыдущий с новым
+                }
+            }
+            return; // вставка завершена
+        }
+        curr = curr->next; // идем дальше
+    }
+}
+
+// печать стека
+void printStack(const StackNode* top) {
+    if (!top) {
+        cout << "Стек пуст.\n"; // если стек пуст, выводим сообщение
+        return;
+    }
+    const StackNode* cur = top;
+    while (cur) {
+        cout << cur->key << " "; // выводим ключ текущего узла
+        cur = cur->next; // идем дальше
+    }
+    cout << "\n"; // перевод строки в конце
+}
+
+// запись в файл
+void saveStackToFile(const StackNode* top, const char* filename) {
+    ofstream ofs(filename); // открываем файл для записи
+    const StackNode* curr = top; // создается указатель curr, который указывает на тот же самый узел, что и top.
+    while (curr) {
+        ofs << curr->key << "\n"; // пишем ключ каждого узла в файл
+        curr = curr->next;
+    }
+}
+
+// восстановление из файла
+void loadStackFromFile(StackNode*& top, const char* filename) {
+    // очистка
+    while (top) pop(top);
+    ifstream ifs(filename); // открываем файл для чтения
+    char buf[100]; // буфер для чтения строк
+    while (ifs.getline(buf, 100)) { // читаем строки по очереди
+        push(top, buf); // добавляем их в стек
+    }
+}
+
+// уничтожение стека
+void destroyStack(StackNode*& top) {
+    while (top) pop(top); // удаляем все узлы
+}
+
+int main() {
+    setlocale(LC_ALL, "rus");
+    StackNode* stack; initStack(stack); // создаем и инициализируем стек
+
+    // добавление элементов
+    push(stack, "яблоко");
+    push(stack, "банан");
+    push(stack, "вишня");
+    cout << "Стек: "; printStack(stack);
+
+    // удаление из начала
+    pop(stack);
+    cout << "После удаления из начала: "; printStack(stack);
+
+    // удаление по ключу
+    deleteByKey(stack, "яблоко");
+    cout << "После удаления 'яблоко': "; printStack(stack);
+
+    // вставка элементов перед 'банан'
+    const char* new_keys[] = { "черешня", "киви" };
+    insertBeforeKey(stack, "банан", 2, new_keys);
+    cout << "После вставки перед 'банан': "; printStack(stack);
+
+    // запись в файл
+    saveStackToFile(stack, "stack.txt");
+    destroyStack(stack);
+    cout << "После уничтожения: "; printStack(stack);
+
+    // восстановление из файла
+    loadStackFromFile(stack, "stack.txt");
+    cout << "После восстановления: "; printStack(stack);
+
+    // удаление из начала
+    pop(stack);
+    cout << "После удаления из начала: "; printStack(stack);
+
+    // удаление из конца. для этого нужно пройти до предпоследнего
+    if (stack) {
+        StackNode* curr = stack;
+        while (curr->next && curr->next->next) {
+            curr = curr->next;
+        }
+        if (curr->next) {
+            delete curr->next; // удаляем последний узел
+            curr->next = nullptr; // обнуляем указатель
+        }
+    }
+    cout << "После удаления из конца: "; printStack(stack);
+
+    // уничтожение
+    destroyStack(stack);
+    cout << "После уничтожения: "; printStack(stack);
+
+    return 0;
+}
