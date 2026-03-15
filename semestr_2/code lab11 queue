@@ -1,0 +1,403 @@
+#include <iostream>
+#include <cstring>
+#include <fstream>
+#include <windows.h>
+#include <clocale>
+using namespace std;
+
+struct Node { // структура узла очереди
+    char key[100]; // массив символов для хранения ключа (строка длиной до 99 символов + нулевой символ)
+    Node* next = nullptr; // указатель на следующий узел, по умолчанию инициализирован нулём
+};
+
+struct Queue { // структура очереди
+    Node* head = nullptr; // указатель на первый элемент очереди
+    Node* tail = nullptr; // указатель на последний элемент очереди
+    int size = 0; // размер очереди (количество элементов)
+};
+
+Queue* createQueue() { // функция для создания новой очереди
+    Queue* q = new Queue; // выделение памяти под очередь
+    q->head = nullptr; // изначально очередь пустая
+    q->tail = nullptr;
+    q->size = 0;
+    return q; // возвращаем указатель на новую очередь
+}
+
+// ввод ключей элементов
+void inputKeys(Queue* q, int count) {
+    for (int i = 0; i < count; i++) {
+        Node* new_node = new Node; // создаем новый узел
+        cout << "Введите ключ элемента " << i + 1 << ": ";
+        cin >> new_node->key; // вводим ключ в поле массива
+        new_node->next = nullptr; // следующий узел пока что nullptr
+        if (!q->head) { // если очередь пустая, то новый узел становится и головой, и хвостом
+            q->head = q->tail = new_node;
+        }
+        else {
+            q->tail->next = new_node; // добавляем новый узел в конец
+            q->tail = new_node; // обновляем хвост
+        }
+        q->size++; // увеличиваем размер очереди
+    }
+}
+
+// добавление элемента в очередь
+void enqueue(Queue* q, const char* key) {
+    Node* new_node = new Node; // создаем новый узел
+    int i = 0;
+    // копируем строку вручную посимвольно
+    while (key[i] != '\0' && i < 99) {
+        new_node->key[i] = key[i];
+        i++;
+    }
+    new_node->key[i] = '\0'; // завершаем строку нулевым символом
+    new_node->next = nullptr; // следующий узел пока что nullptr
+
+    if (!q->head) {
+        q->head = q->tail = new_node;
+    }
+    else {
+        q->tail->next = new_node;
+        q->tail = new_node;
+    }
+    q->size++;
+}
+
+// удаление элемента из очереди
+bool dequeue(Queue* q) {
+    if (!q->head) return false; // если очередь пуста, возвращаем false
+    Node* tmp = q->head; // временная переменная для хранения удаляемого узла
+    q->head = q->head->next; // переводим голову на следующий узел
+    if (!q->head) q->tail = nullptr; // если очередь стала пустой, хвост тоже nullptr
+    delete tmp; // освобождаем память удаленного узла
+    q->size--;
+    return true; // возвращаем true, что удаление прошло успешно
+}
+
+// вывод очереди
+void printQueue(Queue* q) {
+    if (!q->head) { // если очередь пуста
+        cout << "Очередь пуста.\n";
+        return;
+    }
+    Node* curr = q->head; // начинаем с головы
+    while (curr) { // пока текущий узел существует
+        cout << curr->key << " "; // выводим ключ
+        curr = curr->next; // переходим к следующему узлу
+    }
+    cout << "\n"; // перевод строки после вывода всей очереди
+}
+
+void removeUpTo(Queue* q, const char* key) { // функция для удаления элементов до и включая элемент с заданным ключом
+    Node* curr = q->head;
+    // пока очередь не пуста и не нашли целевой элемент
+    while (curr) {
+        if (strcmp(curr->key, key) == 0) {
+            // нашли элемент с нужным ключом, удаляем его и все до него
+            Node* tmp;
+            while (q->head != curr) { // пока голова не совпадает с найденным 
+                tmp = q->head; // временная переменная для удаления
+                q->head = q->head->next; // переносим голову на следующий узел
+                delete tmp;
+                q->size--;
+                printQueue(q); // выводим очередь после каждого удаления
+            }
+            // удаляем сам целевой элемент
+            tmp = q->head;
+            q->head = q->head->next; // переносим голову дальше
+            delete tmp; // удаляем узел
+            q->size--;
+            printQueue(q); // выводим очередь после удаления целевого элемента
+            // если очередь стала пустой, обновляем tail
+            if (!q->head) {
+                q->tail = nullptr;
+            }
+            break; // нашли нужный узел
+        }
+        curr = curr->next; // Иначе ищем дальше
+    }
+}
+
+// удаление по ключу
+void removeElementByKey(Queue* q, const char* key) {
+    if (!q->head) return; // очередь пуста
+
+    Node* curr = q->head;
+    Node* prev = nullptr;
+
+    while (curr) {
+        if (strcmp(curr->key, key) == 0) {
+            // нашли нужный элемент
+            if (prev) {
+                prev->next = curr->next; // связываем предыдущий с следующим
+            }
+            else {
+                // удаляем первый элемент
+                q->head = curr->next;
+            }
+            if (curr == q->tail) {
+                q->tail = prev; // обновляем хвост, если удаляем последний
+            }
+            delete curr;
+            q->size--;
+            cout << "Элемент с ключом \"" << key << "\" удален.\n";
+            return;
+        }
+        prev = curr; // запоминаем текущий узел
+        curr = curr->next; // переход к следующему
+    }
+    cout << "Элемент с ключом \"" << key << "\" не найден.\n";
+}
+
+// вставка по ключу
+void insertKBefore(Queue* q, const char* key, int K) {
+    if (K <= 0) return; // ничего не делаем, если K некорректно
+
+    // создаем массив новых элементов
+    Node** newNodes = new Node * [K];
+    for (int i = 0; i < K; i++) {
+        newNodes[i] = new Node;
+        snprintf(newNodes[i]->key, 100, "Вставка_%d", i + 1); // заполняем ключи
+        newNodes[i]->next = nullptr;
+    }
+
+    Node* curr = q->head;
+    Node* prev = nullptr;
+
+    while (curr) {
+        if (strcmp(curr->key, key) == 0) {
+            // вставляем K элементов перед curr
+            for (int i = 0; i < K; i++) {
+                if (prev) {
+                    prev->next = newNodes[i]; // связываем предыдущий узел с новым
+                }
+                else {
+                    // вставляем в начало
+                    q->head = newNodes[i];
+                }
+                prev = newNodes[i]; // обновляем предыдущий узел
+                q->size++;
+            }
+            // соединяем последний вставленный элемент с текущим
+            prev->next = curr;
+            return;
+        }
+        prev = curr; // иначе идем дальше
+        curr = curr->next;
+    }
+    // если элемент с ключом не найден, удаляем созданные узлы
+    for (int i = 0; i < K; i++) {
+        delete newNodes[i];
+    }
+    delete[] newNodes;
+    cout << "Элемент с ключом \"" << key << "\" не найден, вставка не выполнена.\n";
+}
+
+// вставка по номеру
+void insertAtPosition(Queue* q, int position, const char* key) {
+    if (position < 1 || position > q->size + 1) {
+        cout << "Некорректная позиция.\n";
+        return;
+    }
+
+    Node* new_node = new Node;
+    snprintf(new_node->key, 100, "%s", key); // копирование строки
+    new_node->next = nullptr;
+
+    if (position == 1) {
+        // вставка в начало
+        new_node->next = q->head;
+        q->head = new_node;
+        if (q->size == 0) { // если очередь была пуста
+            q->tail = new_node;
+        }
+    }
+    else {
+        // вставка в середину или в конец
+        Node* curr = q->head;
+        for (int i = 1; i < position - 1; i++) {
+            curr = curr->next; // переходим к нужной позиции
+        }
+        new_node->next = curr->next; // вставляем узел
+        curr->next = new_node;
+        if (new_node->next == nullptr) { // обновляем хвост, если вставляем в конец
+            q->tail = new_node;
+        }
+    }
+    q->size++;
+}
+
+// удаление по номеру
+void removeAtPosition(Queue* q, int position) {
+    if (position < 1 || position > q->size || !q->head) {
+        cout << "Некорректная позиция или очередь пуста.\n";
+        return;
+    }
+
+    Node* tmp;
+    if (position == 1) {
+        // удаление первого элемента
+        tmp = q->head;
+        q->head = q->head->next;
+        if (q->head == nullptr) {
+            q->tail = nullptr;
+        }
+    }
+    else {
+        // удаление из середины или конца
+        Node* curr = q->head;
+        for (int i = 1; i < position - 1; i++) {
+            curr = curr->next;
+        }
+        tmp = curr->next; // узел для удаления
+        curr->next = tmp->next; // переприсвоение указателя
+        if (curr->next == nullptr) { // обновляем хвост
+            q->tail = curr;
+        }
+    }
+    delete tmp;
+    q->size--;
+    cout << "Элемент на позиции " << position << " удален.\n";
+}
+
+// запись очереди в файл
+void saveQueueToFile(Queue* q, const char* filename) {
+    ofstream ofs(filename);
+    if (!ofs) {
+        cout << "Ошибка открытия файла для записи.\n";
+        return;
+    }
+    Node* curr = q->head; // начинаем с головы
+    while (curr) {
+        ofs << curr->key << "\n";  // записываем ключ и перевод строки
+        curr = curr->next;
+    }
+    ofs.close();
+    cout << "Очередь сохранена в файл " << filename << "\n";
+}
+
+// уничтожение очереди
+void destroyQueue(Queue*& q) {  // используем ссылку на указатель
+    Node* curr = q->head;
+    while (curr) {
+        Node* tmp = curr;
+        curr = curr->next;
+        delete tmp;
+    }
+    delete q;
+    q = nullptr;
+}
+
+// восстановление очереди из файла
+void loadQueueFromFile(Queue* q, const char* filename) {
+    ifstream ifs(filename);
+    if (!ifs) {
+        cout << "Ошибка открытия файла для чтения.\n";
+        return;
+    }
+
+    // очистка текущей очереди (удаление всех элементов)
+    Node* curr = q->head;
+    while (curr) {
+        Node* tmp = curr;
+        curr = curr->next;
+        delete tmp;
+    }
+    q->head = nullptr; // обнуляем указатели
+    q->tail = nullptr;
+    q->size = 0; // обнуляем размер
+
+    // загрузка новых данных из файла
+    char buffer[100];
+    while (ifs.getline(buffer, 100)) {
+        enqueue(q, buffer); // добавляем прочитанный ключ в очередь
+    }
+
+    ifs.close();
+    cout << "Очередь загружена из файла " << filename << "\n";
+}
+
+int main() {
+    SetConsoleCP(1251);        // устанавливаем кодировку ввода
+    SetConsoleOutputCP(1251);  // устанавливаем кодировку вывода
+    setlocale(LC_ALL, "ru");
+    Queue* q = createQueue();
+
+    int n;
+    cout << "Введите количество элементов для инициализации очереди: ";
+    cin >> n;
+    inputKeys(q, n);
+
+    cout << "Изначальная очередь: ";
+    printQueue(q);
+
+    // запись в файл
+    saveQueueToFile(q, "queue.txt");
+
+    // тест удаления по ключу
+    char delKey[100];
+    cout << "Введите ключ элемента для удаления: ";
+    cin >> delKey;
+    removeElementByKey(q, delKey);
+    cout << "Очередь после удаления: ";
+    printQueue(q);
+
+    // тест вставки K элементов перед элементом с ключом
+    char insertKey[100];
+    int K;
+    cout << "Введите ключ перед которым вставлять: ";
+    cin >> insertKey;
+    cout << "Введите количество элементов для вставки: ";
+    cin >> K;
+    insertKBefore(q, insertKey, K);
+    cout << "Очередь после вставки: ";
+    printQueue(q);
+
+    // добавление нового элемента
+    enqueue(q, "вишня");
+    cout << "После добавления элемента: ";
+    printQueue(q);
+
+    // удаление элемента
+    dequeue(q);
+    cout << "После удаления элемента: ";
+    printQueue(q);
+
+    char targetKey[100];
+    cout << "Введите ключ для удаления элементов до и включая его: ";
+    cin >> targetKey;
+    removeUpTo(q, targetKey);
+    cout << "Очередь после удаления: ";
+    printQueue(q);
+
+    // вставка по номеру
+    int pos;
+    cout << "Введите позицию для вставки элемента: ";
+    cin >> pos;
+    cout << "Введите ключ для вставки: ";
+    cin >> insertKey;
+    insertAtPosition(q, pos, insertKey);
+    cout << "Очередь после вставки: ";
+    printQueue(q);
+
+    // удаление по номеру
+    int delPos;
+    cout << "Введите позицию для удаления: ";
+    cin >> delPos;
+    removeAtPosition(q, delPos);
+    cout << "Очередь после удаления: ";
+    printQueue(q);
+
+    destroyQueue(q);
+    q = createQueue();
+
+    // восстановление из файла
+    loadQueueFromFile(q, "queue.txt");
+    cout << "Восстановленная очередь: ";
+    printQueue(q);
+
+    destroyQueue(q);
+
+    return 0;
+}
