@@ -1,0 +1,527 @@
+#include <iostream>
+#include <cstring>
+#include <cmath>
+#include <ctime>
+#include <cstdlib>
+#include <windows.h>
+
+using namespace std;
+
+int collision_count = 0; // глобальная переменная для подсчета коллизий. Коллизия - ситуация, когда два разных ключа дают одинаковый хэш-индекс
+
+struct Person { // хранение данных о человеке
+    char fio[100];
+    char birthDate[20];
+    char phone[20];
+    bool deleted; // флаг, указывающий, удалена ли запись. Используется в методе открытой адресации (линейного пробирования)
+    bool occupied; // флаг, указывающий, занята ли ячейка. Используется в методе открытой адресации
+};
+
+struct Node { // node - узел для метода цепочек
+    Person data;
+    Node* next;
+};
+
+struct HashTable {
+    int M; // размер хэш-таблицы. Хэш-функция H(k) = k mod M
+    Node** chains; // указатель на массив указателей на узлы (для метода цепочек)
+    Person* openAddr; // указатель на массив структур Person (для открытой адресации)
+    int currentSize; // текущее количество элементов в таблице. Для контроля заполненности и вывода статистики
+    bool useChaining; // флаг выбора метода разрешения коллизий
+    int collisions; // счетчик коллизий для текущей таблицы
+    bool isInitialized; // флаг, указывающий, была ли таблица инициализирована. Используется для безопасной очистки памяти
+};
+
+void initPerson(Person* p) { // инициализация структуры "человек"
+    p->fio[0] = '\0'; // p->fio - это доступ к полю fio структуры, на которую указывает p. Изначально строка пустая
+    p->birthDate[0] = '\0';
+    p->phone[0] = '\0';
+    p->deleted = false; // запись не удалена
+    p->occupied = false; // ячейка свободна
+}
+
+void initNode(Node* node) { // функция инициализации узла для метода цепочек
+    initPerson(&node->data); // передаём адрес поля data узла(&node->data)
+    node->next = NULL;
+}
+
+void showPerson(Person* p) { // вывод данных о человеке
+    cout << "ФИО:\t\t" << p->fio << endl;
+    cout << "Дата рождения:\t" << p->birthDate << endl;
+    cout << "Телефон:\t" << p->phone << endl;
+    cout << endl;
+}
+
+int hashFunc(HashTable* table, const char* key) { // хэш-функция H(k) = k mod M. Принимает: указатель на таблицу (для доступа к размеру M) и ключ (строку ФИО)
+    unsigned int sum = 0; // переменная для накопления суммы (беззнаковый тип для предотвращения переполнения)
+    for (int i = 0; key[i] != '\0'; i++) { // цикл по всем символам строки-ключа
+        sum = (sum + key[i]) % table->M;
+    }
+    return sum % table->M;
+}
+
+void copyToPerson(Person* person, const char* fio, const char* birth, const char* phone) { // копирование данных в Person
+    int i;
+    for (i = 0; i < sizeof(person->fio) - 1 && fio[i] != '\0'; i++)
+        person->fio[i] = fio[i];
+    person->fio[i] = '\0';
+
+    for (i = 0; i < sizeof(person->birthDate) - 1 && birth[i] != '\0'; i++)
+        person->birthDate[i] = birth[i];
+    person->birthDate[i] = '\0';
+
+    for (i = 0; i < sizeof(person->phone) - 1 && phone[i] != '\0'; i++)
+        person->phone[i] = phone[i];
+    person->phone[i] = '\0';
+
+    person->occupied = true; // помечаем ячейку как занятую
+    person->deleted = false;
+}
+
+void initHashTable(HashTable* table, int size, bool useChain) { // инициализация хэш-таблицы
+    table->M = size; // сохраняем размер таблицы
+    table->collisions = 0;
+    table->currentSize = 0;
+    table->useChaining = useChain; //сСохраняем выбранный метод
+    table->isInitialized = true;
+
+    if (useChain) { // метод цепочек
+        table->chains = new Node * [table->M]; // выделяем память под массив указателей на списки. Создаем массив из M указателей на Node. Результат присваиваем полю chains
+        for (int i = 0; i < table->M; i++)
+            table->chains[i] = NULL;
+        table->openAddr = NULL;
+    }
+    else { // меод открытой адресации
+        table->openAddr = new Person[table->M]; // Выделяем память под массив структур Person. Создаем массив из M объектов Person. Результат присваиваем полю openAddr
+        for (int i = 0; i < table->M; i++)
+            initPerson(&table->openAddr[i]); // инициализируем каждую ячейку массива
+        table->chains = NULL;
+    }
+}
+
+void cleanupHashTable(HashTable* table) { // очистка хэш-таблицы
+    if (!table->isInitialized) return;
+
+    if (table->useChaining) {
+        if (table->chains != NULL) {
+            for (int i = 0; i < table->M; i++) {
+                Node* current = table->chains[i]; // получаем указатель на первый элемент списка в ячейке i
+                while (current != NULL) {
+                    Node* temp = current; // сохраняем указатель на текущий узел во временную переменную
+                    current = current->next;
+                    delete temp;
+                }
+            }
+            delete[] table->chains;
+            table->chains = NULL;
+        }
+    }
+    else {
+        if (table->openAddr != NULL) {
+            delete[] table->openAddr;
+            table->openAddr = NULL;
+        }
+    }
+    table->isInitialized = false;
+}
+
+bool addToHashTable(HashTable* table, const char* fio, const char* birth, const char* phone) { // добавление элемента
+    if (table->useChaining) {
+        int index = hashFunc(table, fio); // вычисляем хэш-индекс для ключа (ФИО)
+        Node* current = table->chains[index]; // получаем указатель на начало списка в ячейке index
+        while (current != NULL) {
+            if (strcmp(current->data.fio, fio) == 0) // проверяем, нет ли уже записи с таким же ФИО (проверка на дубликат)
+                return false; // найден дубликат - добавление невозможно
+            current = current->next;
+        }
+
+        Node* newNode = new Node;
+        initNode(newNode);
+        copyToPerson(&newNode->data, fio, birth, phone);
+
+        if (table->chains[index] != NULL)
+            table->collisions++; // увеличиваем счетчик коллизий, если список не пустой
+
+        newNode->next = table->chains[index]; // добавляем узел в начало списка
+        table->chains[index] = newNode; // голова списка теперь указывает на новый узел
+        table->currentSize++; // увеличиваем счётчик элементов
+        return true;
+    }
+    else {
+        if (table->currentSize >= table->M) // проверяем, есть ли свободное место в таблице
+            return false;
+
+        int index = hashFunc(table, fio); // вычисляем начальный хэш-индекс
+        int startIndex = index;
+        int i = 0;
+
+        while (table->openAddr[index].occupied && !table->openAddr[index].deleted) { // ищем свободное место. Условие: пока ячейка занята и не удалена (то есть содержит активную запись)
+            if (strcmp(table->openAddr[index].fio, fio) == 0)
+                return false;
+            i++; // увеличиваем счетчик попыток
+            index = (startIndex + i) % table->M; // вычисляем следующий индекс: (начальный + i) % M
+            table->collisions++;
+            if (i == table->M) // если обошли всю таблицу и не нашли свободного места
+                return false;
+        }
+
+        copyToPerson(&table->openAddr[index], fio, birth, phone); // нашли свободное место - копируем данные
+        table->currentSize++; // увеличиваем счётчик элементов
+        return true;
+    }
+}
+
+bool searchInHashTable(HashTable* table, const char* fio, Person* result) { // поиск элемента по ключу
+    if (table->useChaining) {
+        int index = hashFunc(table, fio);
+        Node* current = table->chains[index];
+        int probeCount = 0; // счетчик проб (количество проверенных элементов)
+
+        while (current != NULL) {
+            probeCount++;
+            if (strcmp(current->data.fio, fio) == 0) { // сравниваем ФИО текущего элемента с искомым
+                *result = current->data;
+                cout << "Найдено за " << probeCount << " проб" << endl;
+                return true;
+            }
+            current = current->next;
+        }
+        return false;
+    }
+    else {
+        int index = hashFunc(table, fio);
+        int startIndex = index;
+        int i = 0; // счетчик попыток
+        int probeCount = 0; // счётчик проб
+
+        while (table->openAddr[index].occupied) { // ищем элемент, пока ячейка занята
+            probeCount++;
+            if (!table->openAddr[index].deleted && strcmp(table->openAddr[index].fio, fio) == 0) { // проверяем: ячейка не удалена И ФИО совпадает
+                *result = table->openAddr[index];
+                cout << "Найдено за " << probeCount << " проб" << endl;
+                return true;
+            }
+            i++; // переходим к следующей ячейке
+            index = (startIndex + i) % table->M;
+            if (i == table->M)
+                break;
+        }
+        return false;
+    }
+}
+
+bool removeFromHashTable(HashTable* table, const char* fio) { // удаление элемента
+    if (table->useChaining) {
+        int index = hashFunc(table, fio);
+        Node* current = table->chains[index];
+        Node* prev = NULL;
+
+        while (current != NULL) {
+            if (strcmp(current->data.fio, fio) == 0) {
+                if (prev == NULL) // удаляем первый элемент списка (prev == NULL)
+                    table->chains[index] = current->next; // голова списка перемещается на следующий элемент
+                else // удаляем не первый элемент
+                    prev->next = current->next;
+                delete current;
+                table->currentSize--;
+                cout << "Запись удалена" << endl;
+                return true;
+            }
+            prev = current;
+            current = current->next;
+        }
+        cout << "Запись не найдена" << endl;
+        return false;
+    }
+    else {
+        int index = hashFunc(table, fio);
+        int startIndex = index;
+        int i = 0;
+
+        while (table->openAddr[index].occupied) { // ищем элемент
+            if (!table->openAddr[index].deleted && strcmp(table->openAddr[index].fio, fio) == 0) { // проверяем: ячейка не удалена И ФИО совпадает
+                table->openAddr[index].deleted = true;
+                table->currentSize--;
+                cout << "Запись удалена" << endl;
+                return true;
+            }
+            i++;
+            index = (startIndex + i) % table->M;
+            if (i == table->M)
+                break;
+        }
+        cout << "Запись не найдена" << endl;
+        return false;
+    }
+}
+
+void printHashTable(HashTable* table) { // вывод таблицы с полными данными
+    cout << "\n======================================================" << endl;
+    cout << "           ХЭШ-ТАБЛИЦА (размер: " << table->M << ")                      " << endl;
+    cout << "======================================================" << endl;
+
+    if (table->useChaining) {
+        cout << "\nМетод: Цепочки\n" << endl;
+        for (int i = 0; i < table->M; i++) { // проходим по всем индексам (ячейкам) таблицы
+            cout << "Индекс " << i << ":\n";
+            Node* current = table->chains[i]; // получаем голову списка
+            if (current == NULL) {
+                cout << "  [пусто]\n";
+            }
+            else { // если в списке есть элементы
+                int count = 0; // счетчик элементов в цепочке
+                while (current != NULL) {
+                    cout << "  Элемент " << count + 1 << ":\n";
+                    cout << "    ФИО: " << current->data.fio << "\n";
+                    cout << "    Дата рождения: " << current->data.birthDate << "\n";
+                    cout << "    Телефон: " << current->data.phone << "\n";
+                    if (current->next != NULL) cout << "    |\n"; // если есть следующий элемент, выводим разделитель (стрелку)
+                    current = current->next; // переходим к следующему узлу
+                    count++;
+                }
+            }
+            cout << endl;
+        }
+    }
+    else {
+        cout << "\nМетод: Линейное пробирование\n" << endl;
+        for (int i = 0; i < table->M; i++) {
+            cout << "Индекс " << i << ":\n";
+            if (table->openAddr[i].occupied && !table->openAddr[i].deleted) { // определяем состояние ячейки
+                cout << "  ФИО: " << table->openAddr[i].fio << "\n";
+                cout << "  Дата рождения: " << table->openAddr[i].birthDate << "\n";
+                cout << "  Телефон: " << table->openAddr[i].phone << "\n";
+            }
+            else if (table->openAddr[i].deleted) {
+                cout << "  [удалено]\n";
+            }
+            else {
+                cout << "  [свободно]\n";
+            }
+            cout << endl;
+        }
+    }
+    cout << "Всего записей: " << table->currentSize << endl;
+}
+
+void printStats(HashTable* table) { // вывод статистики
+    cout << "\n=== СТАТИСТИКА ===" << endl;
+    cout << "Коллизий: " << table->collisions << endl;
+    cout << "Элементов: " << table->currentSize << endl;
+
+    if (table->useChaining) {
+        int maxChain = 0; // максимальная длина цепочки
+        for (int i = 0; i < table->M; i++) {
+            int count = 0; // счетчик элементов в текущей цепочке
+            Node* current = table->chains[i];
+            while (current != NULL) {
+                count++;
+                current = current->next;
+            }
+            if (count > maxChain) maxChain = count; // обновляем максимальную длину
+        }
+        cout << "Макс. цепочка: " << maxChain << endl;
+    }
+}
+
+void resetCollisions(HashTable* table) { // сброс коллизий. Например, при удалении 50 записей из 100, где уже было насчитано 15 коллизий, а потом при новом добавлении записей счётчик коллизий бы рос с 15, а не с 0. Поэтому необходим предварителшьный сброс
+    table->collisions = 0;
+    cout << "Счетчик коллизий сброшен" << endl;
+}
+
+const char* surnames[] = { "Иванов", "Петров", "Сидоров", "Смирнов", "Кузнецов" };
+const char* names[] = { "Иван", "Петр", "Сидор", "Алексей", "Дмитрий" };
+const char* patronymics[] = { "Иванович", "Петрович", "Сидорович", "Алексеевич" };
+
+const char* birthDates[] = { "01.01.1990", "15.03.1985", "20.07.1992", "10.11.1988", "05.05.1995" };
+const char* phones[] = { "+79001234567", "+79123456789", "+79234567890", "+79345678901", "+79456789012" };
+
+template<typename T, size_t N> // T - тип элементов массива. N - размер массива
+size_t arrSize(T(&)[N]) { return N; } // возвращаем N - размер массива
+
+void generateData(char* fio, char* birth, char* phone, int index) { // функция генерации случайных данных для записи
+    int sIdx = index % arrSize(surnames); // вычисляем индекс для выбора фамилии
+    int nIdx = (index * 2) % arrSize(names); // вычисляем индекс для выбора имени
+    int pIdx = (index * 3) % arrSize(patronymics); // вычисляем индекс для выбора отчества
+    snprintf(fio, 100, "%s %s %s", surnames[sIdx], names[nIdx], patronymics[pIdx]); // формируем строку ФИО в формате "Фамилия Имя Отчество"
+
+    int dIdx = index % arrSize(birthDates); // вычисляем индекс для выбора даты рождения
+    snprintf(birth, 20, "%s", birthDates[dIdx]); // 20 - максимальный размер буфера
+
+    int phIdx = index % arrSize(phones); // вычисляем индекс для выбора телефона
+    snprintf(phone, 20, "%s", phones[phIdx]); // копируем выбранный телефон в буфер phone
+}
+
+void clearInputBuffer() { // функция для очистки буфера ввода
+    cin.clear();
+    while (cin.get() != '\n'); // cin.get() - извлекает один символ из потока ввода
+}
+
+void trimRight(char* str) { // функция для удаления пробелов в конце строки
+    int len = (int)strlen(str);
+    while (len > 0 && (str[len - 1] == ' ' || str[len - 1] == '\n' || str[len - 1] == '\r')) {
+        str[len - 1] = '\0';
+        len--;
+    }
+}
+
+int main() {
+    SetConsoleCP(1251);
+    SetConsoleOutputCP(1251);
+    setlocale(LC_ALL, "Russian");
+
+    int method, size, count;
+    HashTable table;
+    table.isInitialized = false;
+
+    bool continueWork = true; // флаг продолжения работы программы
+
+    while (continueWork) {
+        cout << "\n======================================================" << endl;
+        cout << "           ПОСТРОЕНИЕ ХЭШ-ТАБЛИЦЫ                      " << endl;
+        cout << "======================================================" << endl;
+
+        cout << "Выберите метод (1-цепочки, 2-линейное пробирование): ";
+        cin >> method;
+        cout << "Размер таблицы: ";
+        cin >> size;
+        cout << "Количество записей: ";
+        cin >> count;
+        clearInputBuffer();
+
+        bool useChain = (method == 1);
+
+        if (table.isInitialized) {  // очищаем предыдущую таблицу, если она была инициализирована
+            cleanupHashTable(&table); // освобождаем память, занятую предыдущей таблицей
+        }
+
+        initHashTable(&table, size, useChain); // создаем новую таблицу с указанными параметрами
+
+        if (!useChain && count > size) { // для метода линейного пробирования количество записей не может превышать размер таблицы
+            cout << "Для линейного пробирования записей будет " << size << endl;
+            count = size;
+        }
+
+        cout << "\nГенерация " << count << " записей...\n";
+
+        int added = 0; // счетчик успешно добавленных записей
+        char fio[100], birth[20], phone[20];
+
+        for (int i = 0; i < count; i++) {
+            generateData(fio, birth, phone, i);
+            if (addToHashTable(&table, fio, birth, phone)) {
+                added++;
+                if ((i + 1) % 50 == 0 || i == count - 1) // выводим каждые 50 записей
+                    cout << "Добавлено: " << added << "/" << count << endl;
+            }
+        }
+
+        cout << "\nУспешно добавлено: " << added << " записей\n";
+        printHashTable(&table);
+        printStats(&table);
+
+        int choice;
+        bool backToMenu = false;
+
+        do {
+            cout << "\n=== МЕНЮ ===" << endl;
+            cout << "1. Поиск\n2. Удаление\n3. Показать таблицу\n4. Статистика\n5. Сброс коллизий\n6. Добавить вручную\n7. Выбрать другой метод\n0. Выход из программы\nВыбор: ";
+            cin >> choice;
+            clearInputBuffer(); // очищаем буфер после ввода числа
+
+            Person result;
+            char searchFio[100];
+
+            switch (choice) {
+            case 1: {
+                cout << "Введите ФИО для поиска: ";
+                cin.getline(searchFio, 100);
+                trimRight(searchFio);
+
+                cout << "Поиск: \"" << searchFio << "\"" << endl;
+
+                if (searchInHashTable(&table, searchFio, &result)) {
+                    cout << "\nНайденная запись:\n";
+                    showPerson(&result);
+                }
+                else {
+                    cout << "Запись не найдена" << endl;
+
+                    cout << "\nПримеры существующих записей:\n";
+                    if (table.useChaining) {
+                        int shown = 0; // счетчик показанных записей
+                        for (int i = 0; i < table.M && shown < 5; i++) {
+                            Node* current = table.chains[i];
+                            while (current != NULL && shown < 5) { // проходим по цепочке
+                                cout << "  \"" << current->data.fio << "\"" << endl;
+                                current = current->next;
+                                shown++;
+                            }
+                        }
+                    }
+                    else {
+                        for (int i = 0; i < table.M && i < 5; i++) {
+                            if (table.openAddr[i].occupied && !table.openAddr[i].deleted) {
+                                cout << "  \"" << table.openAddr[i].fio << "\"" << endl;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+            case 2: {
+                cout << "Введите ФИО для удаления: ";
+                cin.getline(searchFio, 100);
+                trimRight(searchFio);
+
+                cout << "Удаление: \"" << searchFio << "\"" << endl;
+                removeFromHashTable(&table, searchFio);
+                printHashTable(&table);
+                break;
+            }
+            case 3:
+                printHashTable(&table);
+                break;
+            case 4:
+                printStats(&table);
+                break;
+            case 5:
+                resetCollisions(&table);
+                break;
+            case 6: {
+                char newFio[100], newBirth[20], newPhone[20];
+                cout << "Введите ФИО: ";
+                cin.getline(newFio, 100);
+                cout << "Введите дату рождения (ДД.ММ.ГГГГ): ";
+                cin.getline(newBirth, 20);
+                cout << "Введите телефон: ";
+                cin.getline(newPhone, 20);
+                if (addToHashTable(&table, newFio, newBirth, newPhone))
+                    cout << "Добавлено!\n";
+                else
+                    cout << "Ошибка: запись уже существует или таблица переполнена!\n";
+                printHashTable(&table);
+                break;
+            }
+            case 7:
+                backToMenu = true;
+                cout << "\nВозврат к выбору метода...\n";
+                break;
+            case 0:
+                continueWork = false;
+                backToMenu = true;
+                cout << "Выход из программы\n";
+                break;
+            default:
+                cout << "Неверный выбор\n";
+                break;
+            }
+        } while (!backToMenu);
+    }
+
+    if (table.isInitialized) {
+        cleanupHashTable(&table); // освобождаем всю выделенную память
+    }
+
+    return 0;
+}
