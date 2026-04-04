@@ -1,0 +1,775 @@
+#include <iostream>
+#include <fstream>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+// функция для создания исходного файла F0 с случайными числами
+void createInitialFile(int size, const char* filename) {
+    ofstream file(filename); // создаем объект для записи в файл с именем filename
+    for (int i = 0; i < size; i++) {
+        file << rand() % 100 << " "; // генерируем случайное число от 0 до 99 и записываем в файл
+    }
+    file.close();
+}
+
+// функция для вывода содержимого файла с разделителями серий
+void printFileWithSeries(const char* filename) {
+    ifstream file(filename); // создаем объект для чтения из файла
+    int current, next; // переменные для текущего и следующего числа
+    bool first = true; // флаг первого числа (для форматирования вывода)
+
+    if (file >> current) { // пытаемся прочитать первое число из файла
+        cout << current; // выводим первое число
+        while (file >> next) { // цикл чтения остальных чисел из файла
+            if (next < current) {
+                cout << " / " << next;
+            }
+            else {
+                cout << " " << next;
+            }
+            current = next;
+        }
+    }
+    file.close();
+    cout << endl;
+}
+
+// функция для подсчета количества серий в файле
+int countSeries(const char* filename) {
+    ifstream file(filename);
+    int current, next;
+    int series = 0;
+
+    if (!(file >> current)) return 0; // если файл пуст
+    series = 1; // если есть хотя бы одно число, это первая серия
+
+    while (file >> next) { // читаем остальные числа
+        if (next < current) {
+            series++;
+        }
+        current = next;
+    }
+
+    file.close();
+    return series;
+}
+
+// функция для разбиения на серии и распределения по файлам F1 и F2
+void distributeToFiles(const char* inputFile, const char* file1, const char* file2) {
+    ifstream input(inputFile); // открываем входной файл для чтения
+    ofstream f1(file1); // открываем выходные файлы для записи
+    ofstream f2(file2);
+
+    int current, next;
+    bool toF1 = true; // начинаем запись в F1
+
+    if (input >> current) { // читаем первое число из входного файла
+        if (toF1) { // записываем первое число в соответствующий файл
+            f1 << current << " ";
+        }
+        else {
+            f2 << current << " ";
+        }
+
+        while (input >> next) {
+            if (next < current) {
+                // конец серии, переключаем файл
+                toF1 = !toF1;
+            }
+
+            if (toF1) {
+                f1 << next << " ";
+            }
+            else {
+                f2 << next << " ";
+            }
+
+            current = next;
+        }
+    }
+
+    input.close();
+    f1.close();
+    f2.close();
+}
+
+// функция для слияния двух файлов в третий
+void mergeFiles(const char* file1, const char* file2, const char* outputFile) {
+    ifstream f1(file1);
+    ifstream f2(file2);
+    ofstream output(outputFile);
+
+    int val1, val2; // переменные для текущих значений из каждого файла
+    bool has1 = false, has2 = false; // флаги наличия данных в каждом файле
+
+    // читаем первые элементы
+    if (f1 >> val1) has1 = true;
+    if (f2 >> val2) has2 = true;
+
+    while (has1 && has2) {
+        // слияние текущей серии из F1 и текущей серии из F2
+        bool series1End = false, series2End = false; // флаги окончания серий
+        int prev1 = val1, prev2 = val2; // сохраняем предыдущие значения для проверки границ серий
+
+        while (!series1End && !series2End) {
+            if (val1 <= val2) {
+                output << val1 << " "; // записываем значение из F1
+                if (!(f1 >> val1)) { // пытаемся прочитать следующее значение из F1
+                    has1 = false; // если не удалось, файл F1 закончился
+                    series1End = true;
+                }
+                else if (val1 < prev1) {
+                    series1End = true;
+                }
+                else {
+                    prev1 = val1; // обновляем предыдущее значение
+                }
+            }
+            else {
+                output << val2 << " ";
+                if (!(f2 >> val2)) {
+                    has2 = false;
+                    series2End = true;
+                }
+                else if (val2 < prev2) {
+                    series2End = true;
+                }
+                else {
+                    prev2 = val2;
+                }
+            }
+        }
+
+        // дописываем остаток текущей серии из F1
+        while (!series1End && has1) {
+            output << val1 << " ";
+            if (!(f1 >> val1)) {
+                has1 = false;
+                break;
+            }
+            else if (val1 < prev1) {
+                break;
+            }
+            else {
+                prev1 = val1;
+            }
+        }
+
+        // дописываем остаток текущей серии из F2
+        while (!series2End && has2) {
+            output << val2 << " ";
+            if (!(f2 >> val2)) {
+                has2 = false;
+                break;
+            }
+            else if (val2 < prev2) {
+                break;
+            }
+            else {
+                prev2 = val2;
+            }
+        }
+    }
+
+    // дописываем оставшиеся данные из F1
+    if (has1) {
+        output << val1 << " ";
+        while (f1 >> val1) {
+            output << val1 << " ";
+        }
+    }
+
+    // дописываем оставшиеся данные из F2
+    if (has2) {
+        output << val2 << " ";
+        while (f2 >> val2) {
+            output << val2 << " ";
+        }
+    }
+
+    f1.close();
+    f2.close();
+    output.close();
+}
+
+int main() {
+    srand(time(0));
+    setlocale(LC_ALL, "ru");
+
+    cout << "==================================" << endl;
+    cout << "ЕСТЕСТВЕННАЯ СОРТИРОВКА" << endl;
+    cout << "==================================" << endl;
+
+    int size;
+    cout << "Введите размер массива: ";
+    cin >> size;
+
+    if (size <= 0) {
+        cout << "Размер должен быть положительным!" << endl;
+        return 1;
+    }
+
+    // создаем исходный файл
+    createInitialFile(size, "F0.txt");
+
+    cout << "\nИсходный массив (F0): ";
+    printFileWithSeries("F0.txt");
+
+    int pass = 1; // счетчик проходов
+    int seriesCount;
+
+    while (true) {
+        seriesCount = countSeries("F0.txt");
+
+        if (seriesCount == 1) {
+            break; // массив отсортирован
+        }
+
+        cout << "\n--- Проход " << pass << " (серий: " << seriesCount << ") ---" << endl;
+
+        // распределяем серии по файлам F1 и F2
+        distributeToFiles("F0.txt", "F1.txt", "F2.txt");
+
+        cout << "F1 после распределения: ";
+        printFileWithSeries("F1.txt");
+        cout << "F2 после распределения: ";
+        printFileWithSeries("F2.txt");
+
+        // сливаем F1 и F2 в F0 (перезаписываем F0)
+        mergeFiles("F1.txt", "F2.txt", "F0.txt");
+
+        cout << "F0 после слияния: ";
+        printFileWithSeries("F0.txt");
+
+        pass++;
+    }
+
+    cout << "\n=== ФИНАЛЬНЫЙ ОТСОРТИРОВАННЫЙ МАССИВ ===" << endl;
+    cout << "F0: ";
+    printFileWithSeries("F0.txt");
+    cout << "\nКоличество проходов: " << (pass - 1) << endl;
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+#include <iostream>
+#include <fstream>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+void createInitialFile(int size, const char* filename) {
+    ofstream file(filename);
+    for (int i = 0; i < size; i++) {
+        file << rand() % 100 << " ";
+    }
+    file.close();
+}
+
+void printFile(const char* filename) {
+    ifstream file(filename);
+    int value; // переменная для временного хранения прочитанного числа
+    while (file >> value) {
+        cout << value << " ";
+    }
+    file.close();
+    cout << endl;
+}
+
+// сортировка сегмента (пузырьком)
+void sortSegment(int* arr, int size) {
+    for (int i = 0; i < size - 1; i++) {
+        for (int j = 0; j < size - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+// слияние двух отсортированных сегментов
+void mergeSegments(int* seg1, int size1, int* seg2, int size2, ofstream& output) {
+    int i = 0, j = 0; // индексы для прохода по массивам seg1 и seg2
+
+    cout << "Слияние: [";
+    for (int k = 0; k < size1; k++) cout << seg1[k] << " ";
+    cout << "] и [";
+    for (int k = 0; k < size2; k++) cout << seg2[k] << " ";
+    cout << "] -> [";
+
+    while (i < size1 && j < size2) {
+        if (seg1[i] <= seg2[j]) {
+            output << seg1[i] << " ";
+            cout << seg1[i] << " ";
+            i++;
+        }
+        else {
+            output << seg2[j] << " ";
+            cout << seg2[j] << " ";
+            j++;
+        }
+    }
+
+    while (i < size1) { // если во втором массиве закончились элементы, а в первом ещё есть
+        output << seg1[i] << " ";
+        cout << seg1[i] << " ";
+        i++;
+    }
+
+    while (j < size2) { // если в первом массиве закончились элементы, а во втором ещё есть
+        output << seg2[j] << " ";
+        cout << seg2[j] << " ";
+        j++;
+    }
+
+    cout << "]" << endl;
+}
+
+void distributeToFiles(const char* inputFile, const char* file1, const char* file2, int segmentSize) {
+    ifstream input(inputFile);
+    ofstream f1(file1), f2(file2);
+    int value;
+    bool toF1 = true;
+    int count = 0; // счётчик элементов в текущем сегменте
+
+    while (input >> value) {
+        if (toF1) f1 << value << " ";
+        else f2 << value << " ";
+
+        count++;
+        if (count % segmentSize == 0) toF1 = !toF1; // если набрали целый сегмент (count кратен segmentSize), то переключаем флаг на противоположный
+    }
+
+    input.close();
+    f1.close();
+    f2.close();
+}
+
+void mergeFiles(const char* file1, const char* file2, const char* outputFile, int segmentSize) { // слияние
+    ifstream f1(file1), f2(file2);
+    ofstream output(outputFile);
+
+    int* seg1 = new int[segmentSize];
+    int* seg2 = new int[segmentSize];
+    int size1, size2; // реальные размеры прочитанных сегментов
+    int pairNum = 1; // счётчик сливаемых пар (для отладочного вывода)
+
+    cout << "\nСлияние пар:" << endl;
+
+    while (true) {
+        size1 = 0;
+        while (size1 < segmentSize && (f1 >> seg1[size1])) size1++;
+
+        size2 = 0;
+        while (size2 < segmentSize && (f2 >> seg2[size2])) size2++;
+
+        if (size1 == 0 && size2 == 0) break;
+
+        if (size2 == 0) {
+            cout << "Остаток: ";
+            for (int i = 0; i < size1; i++) {
+                output << seg1[i] << " ";
+                cout << seg1[i] << " ";
+            }
+            cout << endl;
+            break;
+        }
+
+        if (size1 == 0) {
+            cout << "Остаток: ";
+            for (int i = 0; i < size2; i++) {
+                output << seg2[i] << " ";
+                cout << seg2[i] << " ";
+            }
+            cout << endl;
+            break;
+        }
+
+        cout << "Пара " << pairNum << ": ";
+        sortSegment(seg1, size1);
+        sortSegment(seg2, size2);
+        mergeSegments(seg1, size1, seg2, size2, output);
+        pairNum++;
+    }
+
+    delete[] seg1;
+    delete[] seg2;
+    f1.close();
+    f2.close();
+    output.close();
+}
+
+int main() {
+    srand(time(0));
+    setlocale(LC_ALL, "ru");
+
+    cout << "==================================" << endl;
+    cout << "ДВУХФАЗНАЯ СОРТИРОВКА" << endl;
+    cout << "==================================" << endl;
+
+    int size;
+    cout << "Введите размер массива: ";
+    cin >> size;
+
+    createInitialFile(size, "F0.txt");
+
+    cout << "\nИсходный массив (F0): ";
+    printFile("F0.txt");
+
+    int segmentSize = 1;
+    int iteration = 1;
+    int totalElements = size;
+
+    while (segmentSize < totalElements) {
+        cout << "\n" << string(50, '=') << endl;
+        cout << "ШАГ " << iteration << " (размер сегмента = " << segmentSize << ")" << endl;
+        cout << string(50, '=') << endl;
+
+        // Распределяем из F0 в F1 и F2
+        distributeToFiles("F0.txt", "F1.txt", "F2.txt", segmentSize);
+
+        cout << "\nF1: ";
+        printFile("F1.txt");
+        cout << "F2: ";
+        printFile("F2.txt");
+
+        // Сливаем F1 и F2 прямо в F0 (перезаписываем)
+        mergeFiles("F1.txt", "F2.txt", "F0.txt", segmentSize);
+
+        cout << "\nРезультат: ";
+        printFile("F0.txt");
+
+        segmentSize *= 2;
+        iteration++;
+    }
+
+    cout << "\n" << string(50, '=') << endl;
+    cout << "ОТСОРТИРОВАННЫЙ МАССИВ: ";
+    printFile("F0.txt");
+    cout << string(50, '=') << endl;
+
+    return 0;
+}
+
+
+
+
+
+
+
+#include <iostream>
+#include <fstream>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+void createInitialFile(int size, const char* filename) {
+    ofstream file(filename);
+    for (int i = 0; i < size; i++) {
+        file << rand() % 100 << " ";
+    }
+    file.close();
+}
+
+void printFile(const char* filename) {
+    ifstream file(filename);
+    int value;
+    while (file >> value) {
+        cout << value << " ";
+    }
+    file.close();
+    cout << endl;
+}
+
+void printFileWithSeries(const char* filename) {
+    ifstream file(filename);
+    int current, next;
+
+    if (file >> current) {
+        cout << "[" << current;
+        while (file >> next) {
+            if (next < current) {
+                cout << "] [" << next;
+            }
+            else {
+                cout << " " << next;
+            }
+            current = next;
+        }
+        cout << "]";
+    }
+    file.close();
+    cout << endl;
+}
+
+int countSeries(const char* filename) {
+    ifstream file(filename);
+    int current, next;
+    int series = 0;
+
+    if (!(file >> current)) return 0;
+    series = 1;
+
+    while (file >> next) {
+        if (next < current) {
+            series++;
+        }
+        current = next;
+    }
+
+    file.close();
+    return series;
+}
+
+void findFibonacciNumbers(int seriesCount, int& f1, int& f2) {
+    int a = 1, b = 1;
+
+    while (a + b < seriesCount) {
+        int temp = b;
+        b = a + b;
+        a = temp;
+    }
+
+    f1 = a;
+    f2 = b;
+
+    cout << "Числа Фибоначчи: " << f1 << " и " << f2 << " (" << f1 << " + " << f2 << " = " << (f1 + f2) << " >= " << seriesCount << ")" << endl;
+}
+
+void sortArray(int* arr, int size) {
+    for (int i = 0; i < size - 1; i++) {
+        for (int j = 0; j < size - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+void multiPhaseSort(const char* f0, const char* f1, const char* f2) {
+    int phase = 1;
+
+    while (true) {
+        int seriesCount = countSeries(f0);
+
+        cout << "\n========== ФАЗА " << phase << " ==========" << endl;
+        cout << "Серий в F0: " << seriesCount << endl;
+
+        if (seriesCount <= 1) {
+            break;
+        }
+
+        int fib1, fib2;
+        findFibonacciNumbers(seriesCount, fib1, fib2);
+
+        // распределение серий из F0 в F1 и F2
+        ifstream input(f0);
+        ofstream outF1(f1);
+        ofstream outF2(f2);
+
+        int current, next;
+        int seriesInF1 = 0, seriesInF2 = 0;
+        bool writeToF1 = true;
+
+        if (input >> current) {
+            outF1 << current << " ";
+            seriesInF1 = 1;
+            writeToF1 = true;
+
+            while (input >> next) {
+                if (next < current) {
+                    // новая серия
+                    if (writeToF1 && seriesInF1 < fib1) {
+                        seriesInF1++;
+                    }
+                    else if (!writeToF1 && seriesInF2 < fib2) {
+                        seriesInF2++;
+                    }
+                    else if (seriesInF1 < fib1) {
+                        writeToF1 = true;
+                        seriesInF1++;
+                    }
+                    else if (seriesInF2 < fib2) {
+                        writeToF1 = false;
+                        seriesInF2++;
+                    }
+                }
+
+                if (writeToF1) {
+                    outF1 << next << " ";
+                }
+                else {
+                    outF2 << next << " ";
+                }
+                current = next;
+            }
+        }
+
+        input.close();
+        outF1.close();
+        outF2.close();
+
+        cout << "\nРаспределение:" << endl;
+        cout << "F1: ";
+        printFileWithSeries(f1);
+        cout << "F2: ";
+        printFileWithSeries(f2);
+
+        // слияние F1 и F2 в F0
+        ifstream inF1(f1);
+        ifstream inF2(f2);
+        ofstream outF0(f0);
+
+        cout << "\nСлияние:" << endl;
+
+        int series1[100], series2[100]; // буфер для хранения серий
+        int size1, size2;
+        int pairNum = 1;
+
+        while (true) {
+            // Читаем серию из F1
+            size1 = 0;
+            int val;
+            if (inF1 >> val) {
+                series1[size1++] = val;
+                int prev = val;
+                while (inF1 >> val) {
+                    if (val < prev) {
+                        break;
+                    }
+                    series1[size1++] = val;
+                    prev = val;
+                }
+            }
+
+            // читаем серию из F2
+            size2 = 0;
+            if (inF2 >> val) {
+                series2[size2++] = val;
+                int prev = val;
+                while (inF2 >> val) {
+                    if (val < prev) {
+                        break;
+                    }
+                    series2[size2++] = val;
+                    prev = val;
+                }
+            }
+
+            if (size1 == 0 && size2 == 0) {
+                break;
+            }
+
+            if (size2 == 0) {
+                cout << "Остаток из F1: ";
+                for (int i = 0; i < size1; i++) {
+                    outF0 << series1[i] << " ";
+                    cout << series1[i] << " ";
+                }
+                cout << endl;
+                break;
+            }
+
+            if (size1 == 0) {
+                cout << "Остаток из F2: ";
+                for (int i = 0; i < size2; i++) {
+                    outF0 << series2[i] << " ";
+                    cout << series2[i] << " ";
+                }
+                cout << endl;
+                break;
+            }
+
+            cout << "Пара " << pairNum << ":" << endl;
+
+            // сортируем серии
+            sortArray(series1, size1);
+            sortArray(series2, size2);
+
+            // сливаем
+            int i = 0, j = 0; // индексы для прохода по сериям.
+            cout << "  Результат: [";
+            while (i < size1 && j < size2) {
+                if (series1[i] <= series2[j]) {
+                    outF0 << series1[i] << " ";
+                    cout << series1[i] << " ";
+                    i++;
+                }
+                else {
+                    outF0 << series2[j] << " ";
+                    cout << series2[j] << " ";
+                    j++;
+                }
+            }
+            while (i < size1) {
+                outF0 << series1[i] << " ";
+                cout << series1[i] << " ";
+                i++;
+            }
+            while (j < size2) {
+                outF0 << series2[j] << " ";
+                cout << series2[j] << " ";
+                j++;
+            }
+            cout << "]" << endl;
+
+            pairNum++;
+        }
+
+        inF1.close();
+        inF2.close();
+        outF0.close();
+
+        cout << "\nF0 после фазы " << phase << ": ";
+        printFileWithSeries(f0);
+
+        phase++;
+    }
+
+    cout << "\nСортировка завершена!" << endl;
+}
+
+int main() {
+    srand((time(0)));
+    setlocale(LC_ALL, "ru");
+
+    int size;
+    cout << "Введите размер массива: ";
+    cin >> size;
+
+    if (size <= 0) {
+        cout << "Размер должен быть положительным!" << endl;
+        return 1;
+    }
+
+    createInitialFile(size, "F0.txt");
+
+    cout << "\nИсходный массив (F0): ";
+    printFileWithSeries("F0.txt");
+
+    multiPhaseSort("F0.txt", "F1.txt", "F2.txt");
+
+    cout << "\n========================================" << endl;
+    cout << "ОТСОРТИРОВАННЫЙ МАССИВ: ";
+    printFile("F0.txt");
+    cout << "========================================" << endl;
+
+    return 0;
+}
