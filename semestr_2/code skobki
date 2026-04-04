@@ -1,0 +1,104 @@
+#include <iostream>
+#include <cstring>
+#include <clocale>
+using namespace std;
+
+// структура узла стека
+struct StackNode {
+    char key[100]; // массив символов для хранения строки
+    StackNode* next; // указатель на следующий узел
+};
+
+// создание узла
+StackNode* createNode(const char* str) {
+    StackNode* node = new StackNode; // выделение памяти под новый узел
+    int i = 0;
+    while (str[i] != '\0' && i < 99) { // копирование строки из str в key узла, пока не достигнут конец строки и не превысит размер
+        node->key[i] = str[i]; // копируем по символу
+        i++;
+    }
+    node->key[i] = '\0'; // добавляем терминальный нулевой символ для строки
+    node->next = nullptr; // у нового узла указатель следующего по умолчанию nullptr
+    return node; // возвращаем указатель на созданный узел
+}
+
+// добавление в стек
+void push(StackNode*& top, const char* key) {
+    StackNode* new_node = createNode(key); // создаем новый узел с данными
+    new_node->next = top; // у нового узла следующий — текущий верх стека
+    top = new_node; // обновляем вершину стека новым узлом
+}
+
+// удаление из стека
+char pop(StackNode*& top) {
+    if (!top) return '\0'; // пустой стек
+    StackNode* tmp = top; // сохраняем текущий верх
+    char ch = top->key[0]; // получаем символ из ключа (скобки)
+    top = top->next; // делаем следующим верхом следующий узел
+    delete tmp; // освобождаем память старого верхнего узла
+    return ch; // возвращаем символ
+}
+
+// функция проверки соответствия скобок
+bool s(char open, char close) {
+    return (open == '(' && close == ')') ||
+        (open == '{' && close == '}') ||
+        (open == '[' && close == ']');
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    cout << "Введите строку скобок: ";
+    char input[1000]; // массив для хранения введенной строки
+    cin.getline(input, 1000); // считываем строку
+    StackNode* stack = nullptr; // инициализация стека (указатель на вершину)
+
+    bool error = false;
+    for (int i = 0; input[i] != '\0'; i++) { // цикл по символам строки
+        char ch = input[i]; // текущий символ
+
+        // проверка на допустимый символ
+        if (ch == ' ' || ch == '(' || ch == '{' || ch == '[' || ch == ')' || ch == '}' || ch == ']') {
+            // допустимый символ, обрабатываем
+            if (ch == '(' || ch == '{' || ch == '[') {
+                // если открывающая скобка — добавляем её в стек
+                char buf[2] = { ch, '\0' };
+                push(stack, buf);
+            }
+            else if (ch == ')' || ch == '}' || ch == ']') {
+                // закрывающая скобка
+                if (!stack) {
+                    cout << "Ошибка: закрывающая скобка без соответствующей открывающей.\n";
+                    error = true; // ставим флаг ошибки
+                    break;
+                }
+                char openCh = pop(stack); // извлекаем из стека открывающую скобку
+                if (!s(openCh, ch)) {
+                    cout << "Ошибка: несоответствие скобок.\n";
+                    error = true;
+                    break;
+                }
+            }
+        }
+        else {
+            // недопустимый символ
+            cout << "Некорректная строка: обнаружен недопустимый символ.\n";
+            error = true;
+            break;
+        }
+    }
+
+    if (!error) { // после обработки всей строки
+        if (stack) {
+            cout << "Ошибка: остались незакрытые скобки.\n";
+        }
+        else {
+            cout << "Стек пустой - все скобки правильно закрыты.\n";
+        }
+    }
+
+    // очистка стека
+    while (stack) pop(stack);
+
+    return 0;
+}
