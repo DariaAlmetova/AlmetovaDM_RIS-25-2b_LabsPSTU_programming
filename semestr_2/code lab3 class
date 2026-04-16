@@ -1,0 +1,336 @@
+main.cpp
+
+#include "Money.h"
+#include <iostream>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    cout << "========================================" << endl;
+    cout << "    ЛАБОРАТОРНАЯ РАБОТА (ВАРИАНТ 7)" << endl;
+    cout << "    Класс Money для работы с денежными суммами" << endl;
+    cout << "========================================" << endl << endl;
+
+    // 1. ДЕМОНСТРАЦИЯ КОНСТРУКТОРОВ
+    cout << "--- 1. ДЕМОНСТРАЦИЯ КОНСТРУКТОРОВ ---" << endl;
+
+    // конструктор без параметров
+    cout << "\n>>> Создание объекта конструктором без параметров:" << endl;
+    Money m1;
+    cout << "m1 = " << m1 << endl;
+
+    // конструктор с параметрами
+    cout << "\n>>> Создание объекта конструктором с параметрами:" << endl;
+    Money m2(150, 50);
+    cout << "m2 = " << m2 << endl;
+
+    // конструктор копирования
+    cout << "\n>>> Создание объекта конструктором копирования:" << endl;
+    Money m3 = m2;
+    cout << "m3 = " << m3 << endl;
+
+    // 2. ДЕМОНСТРАЦИЯ СЕЛЕКТОРОВ И МОДИФИКАТОРОВ
+    cout << "\n--- 2. СЕЛЕКТОРЫ И МОДИФИКАТОРЫ ---" << endl;
+    cout << "Рубли m2: " << m2.getRubles() << endl;
+    cout << "Копейки m2: " << m2.getKopeks() << endl;
+
+    m2.setRubles(200);
+    m2.setKopeks(99);
+    cout << "После изменения через сеттеры: m2 = " << m2 << endl;
+
+    // 3. ДЕМОНСТРАЦИЯ ОПЕРАЦИИ ПРИСВАИВАНИЯ
+    cout << "\n--- 3. ОПЕРАЦИЯ ПРИСВАИВАНИЯ ---" << endl;
+    Money m4;
+    m4 = m2;
+    cout << "m4 = m2 => m4 = " << m4 << endl;
+
+    // 4. ДЕМОНСТРАЦИЯ ОПЕРАЦИИ ВВОДА/ВЫВОДА
+    cout << "\n--- 4. ВВОД/ВЫВОД ---" << endl;
+    Money m5;
+    cin >> m5;
+    cout << "Вы ввели: " << m5 << endl;
+
+    // 5. ДЕМОНСТРАЦИЯ ОПЕРАЦИИ ДЕЛЕНИЯ
+    cout << "\n--- 5. ОПЕРАЦИЯ ДЕЛЕНИЯ ( / ) ---" << endl;
+    Money a(300, 0);    // 300,00 рублей
+    Money b(100, 0);    // 100,00 рублей
+    Money c = a / b;    // 300 / 100 = 3
+    cout << a << " / " << b << " = " << c << endl;
+
+    Money d(150, 50);   // 150,50 рублей
+    Money e(50, 25);    // 50,25 рублей
+    Money f = d / e;
+    cout << d << " / " << e << " = " << f << endl;
+
+    // 6. ДЕМОНСТРАЦИЯ ОПЕРАЦИИ УМНОЖЕНИЯ НА ДРОБНОЕ ЧИСЛО
+    cout << "\n--- 6. ОПЕРАЦИЯ УМНОЖЕНИЯ ( * ) ---" << endl;
+    Money g(100, 50);   // 100,50 рублей
+    Money h = g * 2.5;  // 100,50 * 2.5 = 251,25
+    cout << g << " * 2.5 = " << h << endl;
+
+    Money i(50, 20);    // 50,20 рублей
+    Money j = i * 1.75; // 50,20 * 1.75 = 87,85
+    cout << i << " * 1.75 = " << j << endl;
+
+    // 7. ДЕМОНСТРАЦИЯ ПРЕФИКСНОГО И ПОСТФИКСНОГО ИНКРЕМЕНТА
+    cout << "\n--- 7. ОПЕРАЦИИ ИНКРЕМЕНТА (++ и ++) ---" << endl;
+
+    Money k(0, 99);     // 0,99 рублей (99 копеек)
+    cout << "Начальное значение k = " << k << endl;
+
+    // префиксный инкремент (увеличивает и возвращает новое значение)
+    cout << "\nПрефиксный ++k: ";
+    cout << ++k << endl;
+    cout << "После ++k: k = " << k << endl;
+
+    // постфиксный инкремент (возвращает старое значение, затем увеличивает)
+    cout << "\nПостфиксный k++: ";
+    cout << k++ << endl;
+    cout << "После k++: k = " << k << endl;
+
+    // 8. КОМБИНИРОВАННЫЕ ОПЕРАЦИИ
+    cout << "\n--- 8. КОМБИНИРОВАННЫЕ ОПЕРАЦИИ ---" << endl;
+
+    Money x(10, 50);    // 10,50 рублей
+    Money y(2, 0);      // 2,00 рубля
+
+    Money z = (x / y) * 3.0;
+    cout << "(" << x << " / " << y << ") * 3.0 = " << z << endl;
+
+    // 9. ДЕМОНСТРАЦИЯ РАБОТЫ ДЕСТРУКТОРА
+    cout << "\n--- 9. ДЕСТРУКТОР (вызывается при завершении) ---" << endl;
+
+    cout << "\n========================================" << endl;
+    cout << "    ПРОГРАММА ЗАВЕРШИЛА РАБОТУ" << endl;
+    cout << "========================================" << endl;
+
+    return 0;
+}
+
+
+Money.cpp
+
+#include "Money.h"
+#include <iostream>
+#include <cmath>
+using namespace std;
+
+// КОНСТРУКТОРЫ
+
+// конструктор без параметров
+Money::Money() {
+    cout << "Вызван конструктор без параметров" << endl;
+    rubles = 0;
+    kopeks = 0;
+}
+
+// конструктор с параметрами
+Money::Money(long r, int k) {
+    cout << "Вызван конструктор с параметрами" << endl;
+    rubles = r;
+    kopeks = k;
+    normalize();  // нормализуем значения
+}
+
+// конструктор копирования
+Money::Money(const Money& other) {
+    cout << "Вызван конструктор копирования" << endl;
+    rubles = other.rubles;
+    kopeks = other.kopeks;
+}
+
+// ДЕСТРУКТОР
+Money::~Money() {
+    cout << "Деструктор вызван для суммы: " << rubles << "," << kopeks << endl;
+}
+
+// СЕЛЕКТОРЫ (геттеры)
+long Money::getRubles() const { // метод не изменяет объект
+    return rubles;
+}
+
+int Money::getKopeks() const {
+    return kopeks;
+}
+
+// МОДИФИКАТОРЫ (сеттеры)
+void Money::setRubles(long r) {
+    rubles = r;
+}
+
+void Money::setKopeks(int k) {
+    kopeks = k;
+    normalize();
+}
+
+// ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+
+// перевод суммы в копейки
+long Money::toKopeks() const {
+    return rubles * 100 + kopeks;
+}
+
+// нормализация: корректировка копеек (0-99)
+void Money::normalize() {
+    if (kopeks >= 100) {
+        rubles += kopeks / 100;
+        kopeks = kopeks % 100;
+    }
+    else if (kopeks < 0) {
+        long temp = rubles * 100 + kopeks;
+        rubles = temp / 100;
+        kopeks = temp % 100;
+        if (kopeks < 0) {
+            rubles--; // занимаем 1 рубль
+            kopeks += 100;
+        }
+    }
+}
+
+// ПЕРЕГРУЖЕННЫЕ ОПЕРАЦИИ
+
+// операция присваивания
+Money& Money::operator=(const Money& other) {
+    cout << "Вызван оператор присваивания" << endl;
+    // проверка на самоприсваивание
+    if (this == &other) {
+        return *this; // ничего не делаем, возвращаем себя
+    } // копируем данные
+    rubles = other.rubles;
+    kopeks = other.kopeks;
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+// деление двух денежных сумм
+// результат - вещественное число, упакованное в Money
+Money Money::operator/(const Money& other) const {
+    cout << "Вызван оператор деления ( / )" << endl;
+
+    if (other.rubles == 0 && other.kopeks == 0) {
+        cout << "Ошибка: деление на ноль!" << endl;
+        return Money(0, 0);
+    }
+
+    long k1 = this->toKopeks(); // копейки первого числа
+    long k2 = other.toKopeks(); // копейки второго числа
+
+    // результат деления (вещественное число)
+    double result = (double)k1 / (double)k2;
+
+    // переводим в рубли и копейки
+    long totalKopeks = (long)(result * 100);
+
+    return Money(totalKopeks / 100, totalKopeks % 100);
+}
+
+// умножение суммы на дробное число
+Money Money::operator*(double factor) const {
+    cout << "Вызван оператор умножения ( * )" << endl;
+
+    long totalKopeks = (long)(this->toKopeks() * factor);
+
+    return Money(totalKopeks / 100, totalKopeks % 100);
+}
+
+// префиксный инкремент (++m) - увеличивает на 1 копейку
+Money& Money::operator++() {
+    cout << "Вызван префиксный оператор ++" << endl;
+
+    long totalKopeks = this->toKopeks() + 1;
+    rubles = totalKopeks / 100;
+    kopeks = totalKopeks % 100;
+
+    return *this;
+}
+
+// постфиксный инкремент (m++) - увеличивает на 1 копейку
+Money Money::operator++(int) {
+    cout << "Вызван постфиксный оператор ++" << endl;
+
+    Money temp = *this; // сохраняем старое значение
+    long totalKopeks = this->toKopeks() + 1;
+    rubles = totalKopeks / 100;
+    kopeks = totalKopeks % 100;
+
+    return temp; // возвращаем старое значение
+}
+
+// ГЛОБАЛЬНЫЕ ФУНКЦИИ ВВОДА/ВЫВОДА
+
+// перегрузка операции ввода >>
+istream& operator>>(istream& in, Money& m) {
+    cout << "Ввод денежной суммы:" << endl;
+    cout << "Рубли: ";
+    in >> m.rubles; // извлекаем целое число из потока и сохраняем в rubles
+    cout << "Копейки: ";
+    in >> m.kopeks;
+    m.normalize();
+    return in;
+}
+
+// перегрузка операции вывода <<
+// вывод в формате: рубли,копейки (например, 150,50)
+ostream& operator<<(ostream& out, const Money& m) {
+    out << m.rubles << ",";
+
+    // выводим копейки с ведущим нулём при необходимости
+    if (m.kopeks < 10) {
+        out << "0" << m.kopeks;
+    }
+    else {
+        out << m.kopeks;
+    }
+
+    return out;
+}
+
+Money.h
+
+#ifndef MONEY_H // если MONEY_H НЕ определён
+#define MONEY_H // то определи его
+
+#include <iostream>
+using namespace std;
+
+class Money {
+private:
+    long rubles; // рубли (целая часть)
+    int kopeks; // копейки (дробная часть, 0-99)
+
+public:
+    // КОНСТРУКТОРЫ
+    Money(); // конструктор без параметров
+    Money(long r, int k); // конструктор с параметрами
+    Money(const Money& other); // конструктор копирования
+
+    // ДЕСТРУКТОР
+    ~Money();
+
+    // СЕЛЕКТОРЫ (геттеры)
+    long getRubles() const;
+    int getKopeks() const;
+
+    // МОДИФИКАТОРЫ (сеттеры)
+    void setRubles(long r);
+    void setKopeks(int k);
+
+    // ПЕРЕГРУЖЕННЫЕ ОПЕРАЦИИ
+    Money& operator=(const Money& other); // операция присваивания
+    Money operator/(const Money& other) const; // деление сумм
+    Money operator*(double factor) const; // умножение на дробное число
+
+    // префиксный и постфиксный инкремент (увеличение на 1 копейку)
+    Money& operator++(); // префиксный ++
+    Money operator++(int); // постфиксный ++
+
+    // ДРУЖЕСТВЕННЫЕ ФУНКЦИИ ВВОДА/ВЫВОДА
+    friend istream& operator>>(istream& in, Money& m); // теперь эта функция может читать rubles и kopeks напрямую
+    friend ostream& operator<<(ostream& out, const Money& m); // это перегрузка оператора вывода (operator<<) для класса Money
+
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    long toKopeks() const; // перевод в копейки
+    void normalize(); // нормализация (корректировка). приведение денежной суммы к корректному формату, где количество копеек находится в диапазоне от 0 до 99
+};
+
+#endif#pragma once // директива препроцессора, которая предотвращает многократное включение одного и того же заголовочного файла
