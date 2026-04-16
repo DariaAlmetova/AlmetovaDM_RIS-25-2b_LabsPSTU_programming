@@ -1,0 +1,487 @@
+main.cpp
+
+#include <iostream>
+#include "Pair.h"
+#include "Rational.h"
+
+using namespace std;
+
+// функция, принимающая объект базового класса как параметр
+void PrintPair(Pair& p)
+{
+    cout << "Переданная пара: " << p << endl;
+    cout << "Произведение полей: " << p.Multiply() << endl;
+}
+
+// функция, возвращающая объект базового класса как результат
+Pair CreateDefaultPair()
+{
+    Rational r(2, 3);  // создаем объект производного класса
+    cout << "Внутри функции CreateDefaultPair создана дробь: " << r << endl;
+    return r;          // возвращаем как объект базового класса (принцип подстановки)
+}
+
+int main()
+{
+    setlocale(LC_ALL, "Russian");
+
+    cout << "========== Демонстрация работы класса PAIR ==========\n" << endl;
+
+    // конструктор без параметров
+    Pair p1;
+    cout << "Объект p1 (конструктор по умолчанию): " << p1 << endl;
+
+    // конструктор с параметрами
+    Pair p2(5, 3);
+    cout << "Объект p2 (конструктор с параметрами): " << p2 << endl;
+
+    // конструктор копирования
+    Pair p3(p2);
+    cout << "Объект p3 (конструктор копирования): " << p3 << endl;
+
+    // оператор ввода
+    cout << "\nВведите данные для p1:" << endl;
+    cin >> p1;
+    cout << "p1 после ввода: " << p1 << endl;
+
+    // селекторы
+    cout << "\nСелекторы p2: first = " << p2.Get_first() << ", second = " << p2.Get_second() << endl;
+
+    // модификаторы
+    p2.Set_first(10);
+    p2.Set_second(20);
+    cout << "p2 после модификации: " << p2 << endl;
+
+    // операция перемножения полей
+    cout << "\nПроизведение полей p2: " << p2.Multiply() << endl;
+
+    // операция вычитания пар
+    Pair p4(8, 2);
+    Pair p5(5, 1);
+    Pair p6 = p4 - p5;
+    cout << "\n" << p4 << " - " << p5 << " = " << p6 << endl;
+
+    // проверка на равенство
+    cout << "\np1 == p2? " << (p1.IsEqual(p2) ? "Да" : "Нет") << endl;
+
+    // оператор присваивания
+    p1 = p2;
+    cout << "После присваивания p1 = p2: p1 = " << p1 << endl;
+
+    cout << "\n========== Демонстрация работы класса RATIONAL ==========\n" << endl;
+
+    // конструктор без параметров
+    Rational r1;
+    cout << "Объект r1 (конструктор по умолчанию): " << r1 << endl;
+
+    // конструктор с параметрами
+    Rational r2(3, 4);
+    cout << "Объект r2 (конструктор с параметрами): " << r2 << endl;
+
+    // конструктор копирования
+    Rational r3(r2);
+    cout << "Объект r3 (конструктор копирования): " << r3 << endl;
+
+    // оператор ввода
+    cout << "\nВведите данные для r1:" << endl;
+    cin >> r1;
+    cout << "r1 после ввода: " << r1 << endl;
+
+    // арифметические операции с дробями
+    Rational r4(1, 2);
+    Rational r5(1, 3);
+
+    cout << "\nОперации с дробями:" << endl;
+    cout << r4 << " + " << r5 << " = " << (r4 + r5) << endl;
+    cout << r4 << " - " << r5 << " = " << (r4 - r5) << endl;
+    cout << r4 << " * " << r5 << " = " << (r4 * r5) << endl;
+
+    // демонстрация сокращения дробей
+    Rational r6(6, 8);
+    cout << "\nДробь 6/8 после сокращения: " << r6 << endl;
+
+    // оператор присваивания
+    r1 = r2;
+    cout << "\nПосле присваивания r1 = r2: r1 = " << r1 << endl;
+
+    cout << "\n========== Принцип подстановки ==========\n" << endl;
+
+    // передаем объект производного класса в функцию, ожидающую базовый класс
+    Rational r7(7, 9);
+    cout << "Исходная дробь r7: " << r7 << endl;
+    cout << "Вызов функции PrintPair с объектом r7:" << endl;
+    PrintPair(r7);  // принцип подстановки
+
+    // функция возвращает объект базового класса, создавая внутри объект производного
+    cout << "\nВызов функции CreateDefaultPair:" << endl;
+    Pair p7 = CreateDefaultPair();  // принцип подстановки
+    cout << "Функция вернула: " << p7 << endl;
+
+    // демонстрация виртуального поведения
+    // показываем, что объект производного класса можно использовать как базовый
+
+    cout << "\n========== Дополнительная демонстрация ==========\n" << endl;
+
+    // массив указателей на базовый класс
+    Pair* arr[3];
+    arr[0] = new Pair(10, 20);
+    arr[1] = new Rational(1, 2);
+    arr[2] = new Rational(3, 4);
+
+    cout << "Массив объектов (полиморфизм):" << endl;
+    for (int i = 0; i < 3; i++)
+    {
+        cout << "Элемент " << i << ": " << *arr[i] << ", произведение = " << arr[i]->Multiply() << endl;
+    }
+
+    // освобождение памяти
+    for (int i = 0; i < 3; i++)
+    {
+        delete arr[i];
+    }
+
+    cout << "\nПрограмма завершена." << endl;
+    return 0;
+}
+
+Rational.cpp
+
+#include "Rational.h"
+#include <cmath>
+
+// конструктор без параметров
+Rational::Rational(void) : Pair()
+{
+    // first = 0, second = 1 по умолчанию (дробь 0/1)
+    first = 0;
+    second = 1;
+}
+
+// деструктор
+Rational::~Rational(void)
+{
+}
+
+// конструктор с параметрами
+Rational::Rational(int num, int den) : Pair(num, den) // num - числитель, den - знаменатель
+{
+    if (second == 0)
+    {
+        cout << "Ошибка: знаменатель не может быть нулем! Установлено значение 1." << endl;
+        second = 1;
+    }
+    Reduce(); // сразу сокращаем дробь
+}
+
+// конструктор копирования
+Rational::Rational(const Rational& r) : Pair(r)
+{
+    // поля уже скопированы через конструктор Pair
+}
+
+// модификаторы
+void Rational::Set_numerator(int num)
+{
+    first = num;
+    Reduce();
+}
+
+void Rational::Set_denominator(int den)
+{
+    if (den != 0)
+    {
+        second = den;
+        Reduce();
+    }
+    else
+    {
+        cout << "Ошибка: знаменатель не может быть нулем!" << endl;
+    }
+}
+
+// алгоритм Евклида для нахождения НОД
+int Rational::gcd(int a, int b) const
+{
+    a = abs(a);
+    b = abs(b);
+    while (b != 0)
+    {
+        int temp = b;
+        b = a % b;
+        a = temp;
+    }
+    return a;
+}
+
+// сокращение дроби
+void Rational::Reduce()
+{
+    if (second == 0) return;
+
+    int divisor = gcd(first, second); // находим наибольший общий делитель
+    if (divisor != 0)
+    {
+        first /= divisor; // делим числитель на НОД
+        second /= divisor;
+    }
+
+    // если знаменатель отрицательный, переносим знак в числитель
+    if (second < 0)
+    {
+        first = -first; // умножаем числитель на -1
+        second = -second;
+    }
+}
+
+// перегрузка операции присваивания
+Rational& Rational::operator=(const Rational& r)
+{
+    if (&r == this) return *this;
+    first = r.first;
+    second = r.second;
+    return *this;
+}
+
+// сложение дробей: a/b + c/d = (a*d + c*b) / (b*d)
+Rational Rational::operator+(const Rational& r) const
+{
+    Rational result;
+    result.first = this->first * r.second + r.first * this->second;
+    result.second = this->second * r.second;
+    result.Reduce();
+    return result;
+}
+
+// вычитание дробей: a/b - c/d = (a*d - c*b) / (b*d)
+Rational Rational::operator-(const Rational& r) const
+{
+    Rational result;
+    result.first = this->first * r.second - r.first * this->second;
+    result.second = this->second * r.second;
+    result.Reduce();
+    return result;
+}
+
+// умножение дробей: a/b * c/d = (a*c) / (b*d)
+Rational Rational::operator*(const Rational& r) const
+{
+    Rational result;
+    result.first = this->first * r.first;
+    result.second = this->second * r.second;
+    result.Reduce();
+    return result;
+}
+
+// оператор ввода
+istream& operator>>(istream& in, Rational& r)
+{
+    cout << "Введите числитель: ";
+    in >> r.first;
+    cout << "Введите знаменатель: ";
+    in >> r.second;
+
+    if (r.second == 0)
+    {
+        cout << "Ошибка: знаменатель не может быть нулем! Установлено значение 1." << endl;
+        r.second = 1;
+    }
+    r.Reduce();
+    return in;
+}
+
+// оператор вывода
+ostream& operator<<(ostream& out, const Rational& r)
+{
+    if (r.second == 1)
+        out << r.first;
+    else if (r.first == 0)
+        out << 0;
+    else
+        out << r.first << "/" << r.second;
+    return out;
+}
+
+
+Rational.h
+
+#pragma once
+#include "Pair.h"
+
+class Rational : public Pair
+{
+public:
+    // конструкторы
+    Rational(void); // без параметров
+    Rational(int, int); // с параметрами (числитель, знаменатель)
+    Rational(const Rational&); // копирования
+
+    // деструктор
+    ~Rational(void);
+
+    // селекторы
+    int Get_numerator() const { return first; }   // числитель
+    int Get_denominator() const { return second; } // знаменатель
+
+    // модификаторы
+    void Set_numerator(int);
+    void Set_denominator(int);
+
+    // метод сокращения дроби
+    void Reduce();
+
+    // перегрузка операции присваивания
+    Rational& operator=(const Rational&);
+
+    // операции с дробями
+    Rational operator+(const Rational&) const;  // сложение
+    Rational operator-(const Rational&) const;  // вычитание (переопределенная)
+    Rational operator*(const Rational&) const;  // умножение
+
+    // дружественные операторы ввода/вывода
+    friend istream& operator>>(istream&, Rational&);
+    friend ostream& operator<<(ostream&, const Rational&);
+
+private:
+    // вспомогательный метод для нахождения НОД
+    int gcd(int, int) const;
+};
+
+#pragma once
+
+
+Pair.cpp
+
+#include "Pair.h"
+
+// конструктор без параметров
+Pair::Pair(void)
+{
+    first = 0;
+    second = 0;
+}
+
+// деструктор
+Pair::~Pair(void)
+{
+}
+
+// конструктор с параметрами
+Pair::Pair(int f, int s)
+{
+    first = f;
+    second = s;
+}
+
+// конструктор копирования
+Pair::Pair(const Pair& p)
+{
+    first = p.first;
+    second = p.second;
+}
+
+// модификаторы
+void Pair::Set_first(int f)
+{
+    first = f;
+}
+
+void Pair::Set_second(int s)
+{
+    second = s;
+}
+
+// метод проверки на равенство
+bool Pair::IsEqual(const Pair& p) const
+{
+    return (first == p.first && second == p.second);
+}
+
+// операция перемножения полей
+int Pair::Multiply() const
+{
+    return first * second;
+}
+
+// перегрузка операции присваивания
+Pair& Pair::operator=(const Pair& p)
+{
+    if (&p == this) return *this;
+    first = p.first;
+    second = p.second;
+    return *this;
+}
+
+// операция вычитания пар: (a,b)-(c,d) = (a-b, c-d)
+Pair Pair::operator-(const Pair& p) const
+{
+    Pair result;
+    result.first = this->first - this->second;
+    result.second = p.first - p.second;
+    return result;
+}
+
+// глобальная функция для ввода
+istream& operator>>(istream& in, Pair& p)
+{
+    cout << "Введите first: ";
+    in >> p.first;
+    cout << "Введите second: ";
+    in >> p.second;
+    return in;
+}
+
+// глобальная функция для вывода
+ostream& operator<<(ostream& out, const Pair& p)
+{
+    out << "(" << p.first << ", " << p.second << ")";
+    return out;
+}
+
+
+Pair.h
+
+#pragma once
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Pair
+{
+public:
+    // конструкторы
+    Pair(void); // без параметров
+    Pair(int, int); // с параметрами
+    Pair(const Pair&); // копирования
+
+    // деструктор
+    virtual ~Pair(void);
+
+    // селекторы (геттеры)
+    int Get_first() const { return first; }
+    int Get_second() const { return second; }
+
+    // модификаторы (сеттеры)
+    void Set_first(int);
+    void Set_second(int);
+
+    // Метод проверки на равенство
+    bool IsEqual(const Pair&) const;
+
+    // операция перемножения полей
+    int Multiply() const;
+
+    // перегрузка операции присваивания
+    Pair& operator=(const Pair&);
+
+    // операция вычитания пар: (a,b)-(c,d) = (a-b, c-d)
+    Pair operator-(const Pair&) const;
+
+    // дружественные операторы ввода/вывода
+    friend istream& operator>>(istream&, Pair&);
+    friend ostream& operator<<(ostream&, const Pair&);
+
+protected:
+    int first;   // первое число
+    int second;  // второе число
+};
+
