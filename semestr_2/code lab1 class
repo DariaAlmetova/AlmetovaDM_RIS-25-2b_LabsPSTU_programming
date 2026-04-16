@@ -1,0 +1,246 @@
+main.cpp
+
+#include <iostream>
+#include "phone.h"
+using namespace std;
+
+// внешняя функция make_phone() для создания структуры
+PhoneCall make_phone(int duration, double costPerMinute) {
+    PhoneCall temp; // создаем временную переменную
+    temp.Init(duration, costPerMinute); // инициализируем поля
+    return temp; // возвращаем структуру как результат
+}
+
+// функция для демонстрации работы со ссылкой
+void demonstrateReference(PhoneCall& ref) { // ref — это ссылка, которая является псевдонимом для объекта, переданного из main()
+    cout << "Демонстрация работы со ссылкой:" << endl;
+    cout << "Ссылка на объект -> те же данные:" << endl;
+    ref.Show();
+
+    // изменяем данные через ссылку
+    cout << "Изменяем данные через ссылку (новая стоимость минуты - 3.0 руб):" << endl;
+    ref.Init(ref.first, 3.0);
+    ref.Show();
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+
+    cout << "========================================" << endl;
+    cout << "    ЛАБОРАТОРНАЯ РАБОТА (ВАРИАНТ 12)" << endl;
+    cout << "    Расчет стоимости телефонного разговора" << endl;
+    cout << "    ДЕМОНСТРАЦИЯ ВСЕХ СПОСОБОВ СОЗДАНИЯ ОБЪЕКТОВ" << endl;
+    cout << "========================================" << endl << endl;
+
+    // 1. СТАТИЧЕСКАЯ ПЕРЕМЕННАЯ
+    cout << "----- 1. СТАТИЧЕСКАЯ ПЕРЕМЕННАЯ -----" << endl; // статическая переменная создается в стеке, время жизни - до конца функции
+    PhoneCall staticCall; // объект
+    staticCall.Init(20, 2.0);
+    staticCall.Show();
+
+    // 2. ДИНАМИЧЕСКАЯ ПЕРЕМЕННАЯ (указатель)
+    cout << "----- 2. ДИНАМИЧЕСКАЯ ПЕРЕМЕННАЯ (указатель) -----" << endl; // динамический объект dynamicCall (доступ через указатель)
+    PhoneCall* dynamicCall = new PhoneCall; // выделение памяти
+    dynamicCall->Init(45, 1.5); // инициализация через оператор ->
+    dynamicCall->Show();
+    cout << "Стоимость разговора: " << dynamicCall->Cost() << " руб." << endl;
+
+    //3. ИНИЦИАЛИЗАЦИЯ ЧЕРЕЗ МЕТОД INIT
+    cout << "----- 3. ИНИЦИАЛИЗАЦИЯ ЧЕРЕЗ МЕТОД Init -----" << endl;
+    PhoneCall call1; // объект
+    call1.Init(15, 2.5);
+    call1.Show();
+
+    //4. ВВОД С КЛАВИАТУРЫ ЧЕРЕЗ МЕТОД READ
+    cout << "----- 4. ВВОД ДАННЫХ С КЛАВИАТУРЫ -----" << endl;
+    PhoneCall call2;
+    cout << "Введите данные для объекта call2:" << endl;
+    call2.Read();
+    cout << "Объект call2 (введен с клавиатуры):" << endl;
+    call2.Show();
+
+    // 5. СОЗДАНИЕ ЧЕРЕЗ ВНЕШНЮЮ ФУНКЦИЮ MAKE_PHONE
+    cout << "----- 5. СОЗДАНИЕ ЧЕРЕЗ ВНЕШНЮЮ ФУНКЦИЮ make_phone -----" << endl;
+    PhoneCall call3 = make_phone(30, 1.8);
+    call3.Show();
+
+    // ==================== 6. ССЫЛКА НА ОБЪЕКТ ====================
+    cout << "----- 6. ССЫЛКА НА ОБЪЕКТ -----" << endl;
+    PhoneCall originalCall; // объект
+    originalCall.Init(10, 5.0);
+    cout << "Исходный объект originalCall:" << endl;
+    originalCall.Show();
+
+    PhoneCall& refCall = originalCall;  // создаем ссылку на объект
+    cout << "Ссылка refCall (ссылается на originalCall):" << endl;
+    refCall.Show();
+
+    cout << "Изменяем данные через ссылку (новая стоимость 7.5 руб):" << endl;
+    refCall.Init(refCall.first, 7.5);
+    cout << "После изменения через ссылку, исходный объект изменился:" << endl;
+    originalCall.Show();
+
+    // 7. ПЕРЕДАЧА ОБЪЕКТА В ФУНКЦИЮ ПО ССЫЛКЕ
+    cout << "----- 7. ПЕРЕДАЧА ОБЪЕКТА В ФУНКЦИЮ ПО ССЫЛКЕ -----" << endl;
+    PhoneCall callForRef;
+    callForRef.Init(25, 2.2);
+    cout << "Исходный объект до передачи в функцию:" << endl;
+    callForRef.Show();
+
+    demonstrateReference(callForRef);  // передаем по ссылке
+
+    cout << "Объект после работы функции (изменен через ссылку):" << endl;
+    callForRef.Show();
+
+    // 8. СТАТИЧЕСКИЙ МАССИВ ОБЪЕКТОВ
+    cout << "----- 8. СТАТИЧЕСКИЙ МАССИВ ОБЪЕКТОВ -----" << endl;
+    PhoneCall calls[3];
+
+    for (int i = 0; i < 3; i++) {
+        cout << "Введите данные для " << i + 1 << "-го разговора:" << endl;
+        calls[i].Read();
+    }
+
+    cout << "\nРезультаты для статического массива:" << endl;
+    for (int i = 0; i < 3; i++) {
+        cout << "Разговор #" << i + 1 << ":" << endl;
+        calls[i].Show();
+    }
+
+    // 9. ДИНАМИЧЕСКИЙ МАССИВ ОБЪЕКТОВ
+    cout << "----- 9. ДИНАМИЧЕСКИЙ МАССИВ ОБЪЕКТОВ -----" << endl;
+    int arraySize;
+    cout << "Введите количество разговоров для динамического массива: ";
+    cin >> arraySize;
+
+    PhoneCall* dynamicArray = new PhoneCall[arraySize]; // теперь dynamicArray указывает на первый элемент массива из arraySize объектов
+
+    for (int i = 0; i < arraySize; i++) {
+        cout << "\nВведите данные для " << i + 1 << "-го разговора:" << endl;
+        dynamicArray[i].Read();
+    }
+
+    cout << "\nРезультаты для динамического массива:" << endl;
+    for (int i = 0; i < arraySize; i++) {
+        cout << "Разговор #" << i + 1 << ":" << endl;
+        dynamicArray[i].Show();
+    }
+
+    // 10. КОНСТАНТНАЯ ССЫЛКА (доступ только для чтения) 
+    cout << "----- 10. КОНСТАНТНАЯ ССЫЛКА -----" << endl; // константная ссылка позволяет только читать данные, но не изменять их
+    PhoneCall constCall;
+    constCall.Init(60, 1.2);
+
+    const PhoneCall& constRef = constCall;  // константная ссылка
+    cout << "Продолжительность: " << constRef.first << " минут" << endl;
+    cout << "Стоимость минуты: " << constRef.second << " руб." << endl;
+    cout << "Общая стоимость: " << constRef.Cost() << " руб." << endl;
+    // constRef.Init(70, 2.0);  // ОШИБКА! Нельзя изменять через константную ссылку
+
+    //11. УКАЗАТЕЛЬ НА МАССИВ (альтернативный способ)
+    cout << "----- 11. УКАЗАТЕЛЬ НА МАССИВ -----" << endl;
+    PhoneCall* ptrToArray = calls;  // указатель на первый элемент статического массива
+    cout << "Доступ к элементам через указатель:" << endl;
+    for (int i = 0; i < 3; i++) {
+        cout << "Элемент " << i + 1 << " через указатель: " << ptrToArray[i].first << " мин, ";
+        cout << ptrToArray[i].second << " руб/мин" << endl;
+    }
+
+    cout << "\n----- ДЕМОНСТРАЦИЯ ОБРАБОТКИ ОШИБОЧНЫХ ПАРАМЕТРОВ -----" << endl;
+    cout << "Попытка создать объект с некорректными параметрами:" << endl;
+    // PhoneCall invalidCall;
+    // invalidCall.Init(-5, 2.5); // отрицательная продолжительность - вызовет ошибку
+
+    // демонстрация корректной работы с граничными значениями
+    cout << "\nДемонстрация корректной работы с граничными значениями:" << endl;
+    PhoneCall boundaryCall;
+    boundaryCall.Init(1, 0.01);
+    cout << "Разговор длительностью 1 минута по 0.01 руб/мин:" << endl;
+    boundaryCall.Show();
+
+    delete dynamicCall; // освобождаем динамическую переменную
+    delete[] dynamicArray; // освобождаем динамический массив
+
+    cout << "========================================" << endl;
+    cout << "    ПРОГРАММА ЗАВЕРШИЛА РАБОТУ" << endl;
+    cout << "========================================" << endl;
+
+    return 0;
+}
+
+
+phone.cpp
+
+#include <iostream>
+#include "phone.h"
+using namespace std;
+
+// реализация метода для инициализации полей структуры с контролем корректности
+void PhoneCall::Init(int duration, double costPerMinute) {
+    if (duration <= 0) {
+        cout << "ОШИБКА: Продолжительность разговора должна быть положительным целым числом!" << endl;
+        cout << "Программа завершает работу." << endl;
+        exit(1);
+    }
+
+    if (costPerMinute <= 0) {
+        cout << "ОШИБКА: Стоимость минуты разговора должна быть положительным числом!" << endl;
+        cout << "Программа завершает работу." << endl;
+        exit(1);
+    }
+
+    first = duration;
+    second = costPerMinute;
+}
+
+// реализация метода для чтения значений полей с клавиатуры
+void PhoneCall::Read() {
+    int duration;
+    double costPerMinute;
+
+    cout << "Введите продолжительность разговора (в минутах, целое положительное число): ";
+    cin >> duration;
+
+    cout << "Введите стоимость одной минуты разговора (в рублях, положительное число): ";
+    cin >> costPerMinute;
+
+    Init(duration, costPerMinute);
+}
+
+// реализация метода для вывода значений полей на экран
+void PhoneCall::Show() const {
+    cout << "Продолжительность разговора: " << first << " минут" << endl;
+    cout << "Стоимость одной минуты: " << second << " руб." << endl;
+    cout << "Общая стоимость разговора: " << Cost() << " руб." << endl;
+    cout << endl;
+}
+
+// метод для вычисления общей стоимости разговора
+double PhoneCall::Cost() const {
+    return first * second;
+}
+
+
+phone.h
+
+#ifndef PHONE_H // если PHONE_H НЕ определен
+#define PHONE_H // то определи его
+
+struct PhoneCall {
+    int first;      // продолжительность разговора в минутах
+    double second;  // стоимость одной минуты в рублях
+
+    // метод для инициализации полей с контролем корректности
+    void Init(int duration, double costPerMinute);
+
+    // метод для ввода полей с клавиатуры
+    void Read();
+
+    // метод для вывода полей на экран
+    void Show() const;  // добавлен const, так как метод не изменяет объект
+
+    // метод для вычисления общей стоимости разговора
+    double Cost() const;
+};
+
+#endif // конец блока условной компиляции
