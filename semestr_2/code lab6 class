@@ -1,0 +1,299 @@
+main.cpp
+
+#include "Set.h"
+#include <iostream>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    cout << "========== Лабораторная работа №6, вариант 7 ==========" << endl;
+    cout << "Класс-контейнер МНОЖЕСТВО (Set) с элементами int" << endl;
+    cout << "Операции: [], int(), *, -- (итератор)\n" << endl;
+
+    // 1. проверка конструктора Set(int s, int k)
+    Set a(5, 7);
+    cout << "a = " << a << ", размер = " << (int)a << endl;
+
+    // 2. проверка оператора ввода >> (пользователь вводит элементы, дубликаты отсеиваются)
+    Set b;
+    cin >> b;
+    cout << "b = " << b << ", размер = " << (int)b << endl;
+
+    // 3. лоступ по индексу
+    if ((int)b > 0) { // если множество не пустое
+        cout << "b[0] = " << b[0] << endl;
+        b[0] = 100; // изменяем первый элемент (прямой доступ)
+        cout << "После b[0]=100: " << b << endl;
+    }
+
+    // 4. присваивание
+    Set c;
+    c = b; // копируем b в c
+    cout << "c = b => " << c << endl;
+
+    // 5. пересечение
+    Set d = a * b;
+    cout << "a * b = " << d << endl;
+
+    // 6. итератор: переход к предыдущему элементу (--)
+    cout << "\n--- Итератор (перебор в обратном порядке) ---" << endl;
+    if ((int)b > 0) {
+        Iterator it = b.last();   // за последним
+        --it;                     // на последний
+        cout << "Последний: " << *it << endl;
+        if (it != b.first()) { // если не единственный элемент
+            --it; // переходим к предыдущему
+            cout << "Предпоследний: " << *it << endl;
+        }
+    }
+
+    // 7. перебор всех элементов с помощью итератора (с использованием ++)
+    cout << "\nПеребор в прямом порядке (через ++):" << endl;
+    for (Iterator i = b.first(); i != b.last(); ++i) {
+        cout << *i << " "; // выводим каждый элемент
+    }
+    cout << endl;
+
+    // 8. приведение к int
+    cout << "\nРазмер a = " << (int)a << endl;
+    cout << "Размер b = " << (int)b << endl;
+
+    return 0;
+}
+
+
+Set.cpp
+
+#include "Set.h"
+
+// итераторы
+Iterator::Iterator() : elem(nullptr) {} // конструктор по умолчанию: инициализируем указатель нулём (ни на что не указывает)
+Iterator::Iterator(const Iterator& it) : elem(it.elem) {} // конструктор копирования: копируем указатель из другого итератора
+Iterator::Iterator(int* p) : elem(p) {} // конструктор от указателя на int. публичный, чтобы Set мог создавать итераторы.
+
+bool Iterator::operator==(const Iterator& it) const { // сравнение на равенство: итераторы равны, если указывают на один и тот же элемент
+    return elem == it.elem;
+}
+bool Iterator::operator!=(const Iterator& it) const { // сравнение на неравенство: противоположность равенству
+    return elem != it.elem;
+}
+
+// префиксный инкремент ++i: сначала сдвигаем указатель вперёд, затем возвращаем себя
+Iterator& Iterator::operator++() {
+    if (elem) ++elem; // если указатель не нулевой, перемещаем на следующий элемент
+    return *this; // возвращаем ссылку на текущий объект (уже сдвинутый)
+}
+// постфиксный инкремент i++: сохраняем старое значение, сдвигаем, возвращаем старую копию
+Iterator Iterator::operator++(int) {
+    Iterator temp = *this; // копируем текущее состояние
+    if (elem) ++elem; // сдвигаем указатель
+    return temp; // возвращаем старую копию (до сдвига)
+}
+
+// префиксный декремент --i: сдвигаем указатель назад, возвращаем себя
+Iterator& Iterator::operator--() {
+    if (elem) --elem;
+    return *this;
+}
+// постфиксный декремент i--: сохраняем старое, сдвигаем, возвращаем старую копию
+Iterator Iterator::operator--(int) {
+    Iterator temp = *this;
+    if (elem) --elem;
+    return temp;
+}
+int& Iterator::operator*() const { // разыменование: возвращаем ссылку на элемент, на который указывает итератор. позволяет читать и изменять значение: *it = 10.
+    return *elem;
+}
+// реализация set
+Set::Set(int s, int k) : size(0), data(nullptr) { // конструктор с параметрами.
+    if (s > 0) { // если s > 0, создаётся множество с одним элементом k. k – значение элемента
+        data = new int[1]; // выделяем память под один элемент
+        data[0] = k; // записываем значение
+        size = 1; // теперь в множестве один элемент
+    } // инициализация итераторов: beg – на первый элемент, end – на позицию после последнего
+    beg = Iterator(data ? &data[0] : nullptr);
+    end = Iterator(data ? &data[size] : nullptr);
+}
+
+Set::Set(const Set& other) : size(other.size), data(nullptr) { // конструктор копирования.
+    if (size > 0) {
+        data = new int[size];
+        for (int i = 0; i < size; ++i)
+            data[i] = other.data[i];
+    } // копируем итераторы (они просто содержат указатели на новые данные)
+    beg = Iterator(data ? &data[0] : nullptr);
+    end = Iterator(data ? &data[size] : nullptr);
+}
+
+Set::~Set() { // деструктор. освобождает память, выделенную под массив элементов.
+    delete[] data; // обнуляем указатель
+    data = nullptr;
+    size = 0;
+}
+
+Set& Set::operator=(const Set& other) { // оператор присваивания.
+    if (this == &other) return *this; // самоприсваивание – ничего не делаем
+    delete[] data; // освобождаем старую память
+    size = other.size;
+    if (size > 0) {
+        data = new int[size];
+        for (int i = 0; i < size; ++i)
+            data[i] = other.data[i];
+    }
+    else {
+        data = nullptr;
+    } // обновляем итераторы согласно новому массиву
+    beg = Iterator(data ? &data[0] : nullptr);
+    end = Iterator(data ? &data[size] : nullptr);
+    return *this;
+}
+
+int& Set::operator[](int index) { // оператор доступа по индексу. возвращает ссылку на элемент, что позволяет изменять его. при выходе за границы выдаёт сообщение об ошибке и возвращает ссылку на статическую dummy.
+    static int dummy = 0; // статическая переменная для возврата при ошибке
+    if (index < 0 || index >= size) {
+        cout << "Ошибка: индекс вне границ!" << endl;
+        return dummy;
+    }
+    return data[index];
+}
+
+Set Set::operator*(const Set& other) const { // оператор пересечения множеств (*). создаёт новое множество, содержащее только элементы, присутствующие в обоих множествах.
+    Set result; // пустое множество для результата
+    for (int i = 0; i < size; ++i) {
+        if (other.contains(data[i])) // если элемент есть в other
+            result.addUnique(data[i]); // добавляем в результат (без дубликатов)
+    }
+    return result;
+}
+
+Set::operator int() const { // оператор приведения к int. позволяет получить размер множества как int. пример: int len = set;  или  cout << (int)set;
+    return size;
+}
+
+bool Set::contains(int val) const { // вспомогательный метод: проверяет, содержится ли значение val в множестве. используется для поддержания уникальности.
+    for (int i = 0; i < size; ++i)
+        if (data[i] == val) return true;
+    return false;
+}
+
+void Set::addUnique(int val) { // вспомогательный метод: добавляет значение val в множество, если его там ещё нет. при добавлении создаётся новый массив на один элемент больше.
+    if (contains(val)) return; // уже есть – ничего не делаем
+    int* newData = new int[size + 1]; // выделяем новый массив большего размера
+    for (int i = 0; i < size; ++i)
+        newData[i] = data[i]; // копируем старые элементы
+    newData[size] = val; // добавляем новый
+    delete[] data; // удаляем старый массив
+    data = newData; // переключаем указатель на новый
+    size++; // увеличиваем размер
+    // обновляем итераторы: указатели могли измениться из-за перевыделения памяти
+    beg = Iterator(&data[0]);
+    end = Iterator(&data[size]);
+}
+
+ostream& operator<<(ostream& out, const Set& s) { // глобальный оператор вывода. друг класса Set, имеет доступ к private - полям. выводит элементы в фигурных скобках через пробел.
+    out << "{ ";
+    for (int i = 0; i < s.size; ++i)
+        out << s.data[i] << " ";
+    out << "}";
+    return out;
+}
+
+istream& operator>>(istream& in, Set& s) { // глобальный оператор ввода. друг класса Set. сначала запрашивает количество элементов, затем читает числа и добавляет их через addUnique, что автоматически отсеивает дубликаты.
+    int n;
+    cout << "Введите количество элементов: ";
+    in >> n;
+    delete[] s.data; // очищаем текущее множество
+    s.data = nullptr;
+    s.size = 0;
+    cout << "Введите " << n << " целых чисел: ";
+    for (int i = 0; i < n; ++i) {
+        int val;
+        in >> val;
+        s.addUnique(val);
+    } // обновляем итераторы после всех добавлений
+    s.beg = Iterator(s.data ? &s.data[0] : nullptr);
+    s.end = Iterator(s.data ? &s.data[s.size] : nullptr);
+    return in;
+}
+
+Iterator Set::first() const { // возвращает итератор, указывающий на первый элемент множества.
+    return beg;
+}
+Iterator Set::last() const { // конечный маркер
+    return end;
+}
+
+
+Set.h
+
+#pragma once
+#include <iostream>
+using namespace std;
+
+class Set; // предварительное объявление класса Set (необходимо для friend-связи в Iterator).
+
+class Iterator { // класс - итератор для последовательного доступа к элементам множества. поддерживает операции ++ (вперёд), -- (назад), сравнение, разыменование. дружит с классом Set, чтобы Set мог создавать итераторы на свои внутренние данные.
+    friend class Set; // дружба: Set имеет доступ к private-полям Iterator.
+public:
+    Iterator(); // конструктор по умолчанию.
+    Iterator(const Iterator& it); // копирования.
+    Iterator(int* p); // конструктор от указателя на int (публичный, нужен для создания beg/end).
+
+    // орперации сравнения (нужны для циклов: i != last()).
+    bool operator==(const Iterator& it) const;
+    bool operator!=(const Iterator& it) const;
+
+    // переход к следующему элементу (для перебора вперёд)
+    Iterator& operator++(); // префиксный ++
+    Iterator operator++(int); // постфиксный ++
+
+    // переход к предыдущему элементу
+    Iterator& operator--(); // префиксный --
+    Iterator operator--(int); // постфиксный --
+
+    int& operator*() const; // разыменование: возвращает ссылку на текущий элемент (позволяет изменять значение)
+
+private:
+    int* elem; // указатель на текущий элемент в массиве data множества
+};
+
+class Set { // класс - контейнер "Множество" (Set) для хранения уникальных целых чисел. реализован на основе динамического массива. размер меняется при добавлении.
+public:
+    // конструкторы
+    Set(int s = 0, int k = 0); // по умолчанию – пустое множество. если s>0, создаёт множество из одного элемента k.
+    Set(const Set& other); // копирования
+
+    // деструктор
+    ~Set();
+
+    // оператор присваивания
+    Set& operator=(const Set& other);
+
+    // доступ по индексу (прямой доступ к элементу, возвращает ссылку для изменения).
+    int& operator[](int index);
+
+    // пересечение множеств. возвращает новое множество с общими элементами.
+    Set operator*(const Set& other) const;
+
+    // Приведение к int – возвращает размер
+    operator int() const;
+
+    // дружественные функции ввода/вывода (имеют доступ к private-полям)
+    friend ostream& operator<<(ostream& out, const Set& s);
+    friend istream& operator>>(istream& in, Set& s);
+
+    // методы для итератора
+    Iterator first() const; // итератор на первый элемент
+    Iterator last() const;
+
+private:
+    int size; // текущее количество уникальных элементов
+    int* data; // указатель на динамический массив уникальных элементов
+    Iterator beg; // итератор на первый элемент (всегда data[0])
+    Iterator end; // итератор на элемент после последнего (data[size])
+
+    // вспомогательные методы
+    bool contains(int val) const; // проверяет, есть ли значение val в множестве
+    void addUnique(int val); // добавляет значение, если его ещё нет
+};
