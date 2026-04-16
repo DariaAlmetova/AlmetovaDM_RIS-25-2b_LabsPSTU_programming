@@ -1,0 +1,621 @@
+main.cpp
+
+#include "Dialog.h"
+#include <iostream>
+#include <clocale>
+#include <windows.h>
+using namespace std;
+
+int main()
+{
+    SetConsoleCP(1251);
+    SetConsoleOutputCP(1251);
+    setlocale(LC_ALL, "Russian");
+
+    // выводим справку по командам
+    cout << "Доступные команды:\n"
+        << "  m<число>  - создать группу (например m5)\n"
+        << "  +         - добавить элемент\n"
+        << "  -         - удалить последний элемент\n"
+        << "  s         - вывести всю группу\n"
+        << "  z<число>  - вывести имя элемента с указанным номером\n"
+        << "  q         - выход\n\n";
+
+    Dialog dlg; // создаём объект диалога (группа изначально пустая)
+    dlg.Execute(); // запускаем главный цикл обработки команд
+
+    return 0;
+}
+
+
+Dialog.cpp
+
+#include "Dialog.h"
+#include "Person.h"
+#include "Employee.h" 
+#include <iostream>
+#include <string> 
+#include <cstdlib> // для atoi (преобразование строки в число)
+using namespace std;
+
+// конструктор: вызываем конструктор List (по умолчанию) и обнуляем EndState
+Dialog::Dialog() : List(), EndState(0) {}
+
+// деструктор (ничего не делает, т.к. ресурсы освобождаются в ~List)
+Dialog::~Dialog() {}
+
+// получение события от пользователя
+void Dialog::GetEvent(TEvent& event)
+{
+    string input; // строка для хранения ввода
+    char code; // первый символ (код команды)
+    cout << "> "; // приглашение
+    cin >> input; // считываем строку
+    if (input.empty()) return; // если ничего не ввели – выходим
+
+    code = input[0]; // берём первый символ
+    event.what = evMessage; // по умолчанию событие – сообщение
+
+    // определяем команду по первому символу
+    switch (code)
+    {
+    case 'm': event.command = cmMake; break;   // создать группу
+    case '+': event.command = cmAdd;  break;   // добавить элемент
+    case '-': event.command = cmDel;  break;   // удалить элемент
+    case 's': event.command = cmShow; break;   // вывести группу
+    case 'z': event.command = cmGet;  break;   // вывести имя по индексу
+    case 'q': event.command = cmQuit; break;   // выход
+    default:  event.what = evNothing; return;  // неизвестная команда – пустое событие
+    }
+
+    // если команда 'z', после неё может быть число (например z3)
+    if ((code == 'm' || code == 'z') && input.length() > 1)
+    {
+        string param = input.substr(1); // выделяем подстроку, начиная со второго символа
+        event.a = atoi(param.c_str());  // преобразуем в целое число и сохраняем в поле a
+    }
+    else
+    {
+        event.a = 0; // для остальных команд параметр = 0
+    }
+}
+
+// очистка события (помечаем как пустое)
+void Dialog::ClearEvent(TEvent& event)
+{
+    event.what = evNothing; // устанавливаем тип "пустое событие"
+}
+
+// проверка, нужно ли завершить программу
+int Dialog::Valid()
+{
+    return (EndState != 0); // возвращаем true, если EndState не ноль
+}
+
+// установка флага завершения
+void Dialog::EndExec()
+{
+    EndState = 1; // устанавливаем признак "конец работы"
+}
+
+// главный цикл обработки событий
+int Dialog::Execute()
+{
+    TEvent event; // структура для события
+    do
+    {
+        EndState = 0; // сбрасываем флаг (ждём команду)
+        GetEvent(event); // получаем событие от пользователя
+        if (event.what != evNothing) // если событие не пустое
+            HandleEvent(event); // обрабатываем его
+    } while (!Valid()); // повторяем, пока Valid() не вернёт true (т.е. EndState != 0)
+    return EndState; // возвращаем код завершения
+}
+
+// обработчик событий (команд) для диалога
+void Dialog::HandleEvent(TEvent& event)
+{
+    if (event.what == evMessage) // если это сообщение (команда)
+    {
+        switch (event.command) // выбор действия по коду команды
+        {
+        case cmMake: // создать группу (формат m<число>)
+        {
+            int n = event.a;
+            if (n <= 0) {
+                cout << "Укажите положительный размер (например m5)" << endl;
+            }
+            else {
+                Clear(); // очищаем текущий список
+                size = n; // устанавливаем новую максимальную ёмкость
+                cout << "Создана группа размером " << size << endl;
+            }
+            ClearEvent(event);
+        }
+        break;
+
+        case cmAdd: // добавить элемент (+)
+        {
+            int type;
+            cout << "Тип: 1 - Человек, 2 - Сотрудник: ";
+            cin >> type;
+            Object* p = nullptr;
+            if (type == 1)
+                p = new Person(); // создаём Person
+            else if (type == 2)
+                p = new Employee(); // создаём Employee
+            else
+            {
+                cout << "Неверный тип." << endl;
+                break;
+            }
+            p->Input(); // вводим данные (полиморфизм)
+            Add(p); // добавляем в группу
+            ClearEvent(event);
+        }
+        break;
+
+        case cmDel: // удалить элемент (-)
+            Del(); // удаляем последний
+            ClearEvent(event);
+            break;
+
+        case cmShow: // показать всю группу (s)
+            ShowAll();
+            ClearEvent(event);
+            break;
+
+        case cmGet: // вывести имя элемента с номером k (z k)
+            ShowByIndex(event.a); // event.a содержит индекс
+            ClearEvent(event);
+            break;
+
+        case cmQuit: // выход (q)
+            EndExec(); // устанавливаем флаг завершения
+            ClearEvent(event);
+            break;
+
+        default:
+            // если команда не распознана диалогом – передаём группе (List)
+            List::HandleEvent(event);
+            break;
+        }
+    }
+}
+
+
+Dialog.h
+
+#pragma once
+#include "List.h" // наследуем от List
+#include "Event.h" // для работы с событиями
+
+class Dialog : public List // диалог – это группа с возможностью обработки команд
+{
+public:
+    Dialog(); // конструктор
+    virtual ~Dialog(); // виртуальный деструктор
+
+    virtual void GetEvent(TEvent& event); //пПолучить событие от пользователя
+    virtual int Execute(); // главный цикл обработки событий
+    virtual void HandleEvent(TEvent& event); // обработчик событий (команд)
+    virtual void ClearEvent(TEvent& event);  // очистить событие (пометить как обработанное)
+
+    int Valid(); // проверить, нужно ли завершить работу
+    void EndExec(); // установить флаг завершения
+
+protected:
+    int EndState; // флаг завершения (0 – работать, 1 – выход)
+};
+
+
+List.cpp
+
+#include "List.h"
+#include "Person.h"
+#include "Employee.h"
+#include <iostream>
+using namespace std;
+
+// конструктор без параметров: создаёт пустой список без ограничения размера.
+List::List() : head(nullptr), tail(nullptr), size(0), cur(0) {}
+
+// конструктор с максимальным размером (size > 0).
+List::List(int maxSize) : head(nullptr), tail(nullptr), size(maxSize), cur(0) {} // список изначально пуст, но при добавлении элементов будет проверяться лимит.
+
+// деструктор: освобождает всю память, занятую узлами и объектами.
+List::~List() {
+    Clear(); // вызываем общую очистку
+}
+
+// очистка списка: удаляет все узлы и хранимые объекты. проход от головы к хвосту, сохраняя указатель на следующий узел перед удалением.
+void List::Clear() {
+    Node* current = head; // начинаем с первого узла
+    while (current) {
+        Node* next = current->next; // запоминаем следующий узел, так как current будет удалён
+        delete current->data; // удаляем объект (Person или Employee)
+        delete current; // удаляем сам узел
+        current = next; // переходим к следующему
+    }
+    head = tail = nullptr; // обнуляем указатели начала и конца
+    cur = 0; // сбрасываем счётчик
+}
+
+// оператор приведения к int: возвращает текущее количество элементов в списке.
+int List::operator()() const {
+    return cur;
+}
+
+// добавление объекта в конец списка. параметр: p – указатель на созданный вне списка объект (Person/Employee).
+// если задан максимальный размер и он достигнут – объект удаляется, добавляется сообщение.
+void List::Add(Object* p) {
+    // проверка лимита размера (если size>0, значит ограничение активно)
+    if (size > 0 && cur >= size) {
+        cout << "Группа переполнена!" << endl;
+        delete p; // иначе произойдёт утечка памяти
+        return;
+    }
+
+    // создаём новый узел: данные – p, предыдущий – текущий tail, следующий – nullptr.
+    Node* newNode = new Node(p, tail, nullptr);
+
+    if (!head) { // список был пуст?
+        head = tail = newNode; // тогда новый узел становится и головой, и хвостом
+    }
+    else {
+        tail->next = newNode; // старый хвост указывает на новый узел
+        tail = newNode; // новый узел становится хвостом
+    }
+    ++cur; // увеличиваем счётчик элементов
+}
+
+// удаление последнего элемента (из хвоста).
+void List::Del() {
+    if (!tail) {   // список пуст (tail == nullptr)
+        cout << "Группа пуста, нечего удалять." << endl;
+        return;
+    }
+
+    Node* toDelete = tail; // запоминаем удаляемый узел
+    tail = tail->prev; // перемещаем tail на предыдущий узел
+
+    if (tail) // если новый tail существует (список не станет пустым)
+        tail->next = nullptr; // обрываем связь с удаляемым узлом
+    else
+        head = nullptr; // если список стал пустым, обнуляем и head
+
+    delete toDelete->data; // удаляем объект (Person/Employee)
+    delete toDelete; // удаляем узел
+    --cur; // уменьшаем счётчик
+}
+
+// вывод всех элементов списка в консоль с нумерацией (начиная с 1).
+void List::ShowAll() {
+    if (cur == 0) {
+        cout << "Группа пуста." << endl;
+        return;
+    }
+
+    Node* current = head;
+    int index = 1;
+    while (current) {
+        cout << index++ << ". ";
+        current->data->Show(); // полиморфный вызов: Person::Show() или Employee::Show()
+        current = current->next;
+    }
+}
+
+// вывод имени элемента по его индексу (1-нумерация). создаётся событие TEvent с командой cmGet и отправляется выбранному объекту.
+void List::ShowByIndex(int idx) {
+    // Проверка границ
+    if (idx < 1 || idx > cur) {
+        cout << "Неверный индекс." << endl;
+        return;
+    }
+
+    // находим узел с индексом idx (линейный поиск от головы)
+    Node* current = head;
+    for (int i = 1; i < idx; ++i)
+        current = current->next;
+
+    // формируем событие для получения имени
+    TEvent ev;
+    ev.what = evMessage;
+    ev.command = cmGet;
+    // передаём событие объекту – он сам решит, как отреагировать (выведет имя)
+    current->data->HandleEvent(ev);
+}
+
+// передача события всем элементам списка. каждый объект (Person или Employee) самостоятельно обрабатывает событие, если оно ему интересно (например, cmGet).
+void List::HandleEvent(const TEvent& e) {
+    Node* current = head;
+    while (current) {
+        current->data->HandleEvent(e);
+        current = current->next;
+    }
+}
+
+
+List.h
+
+#pragma once
+#include "Object.h"
+#include "Event.h"
+
+// узел двусвязного списка
+struct Node {
+    Object* data; // указатель на объект (Person или Employee)
+    Node* prev; // указатель на предыдущий узел
+    Node* next; // указатель на следующий узел
+
+    Node(Object* obj, Node* p = nullptr, Node* n = nullptr) // конструктор структуры Node
+        : data(obj), prev(p), next(n) {
+    }
+};
+
+class List {
+public:
+    List(); // конструктор без параметров
+    List(int maxSize); // конструктор с максимальным размером
+    List(const List& other) = delete; // запрет копирования
+    List& operator=(const List& other) = delete; // запрет присваивания
+    virtual ~List(); // деструктор
+
+    int operator()() const; // возвращает текущее количество элементов
+
+    void Add(Object* p); // добавить объект в конец
+    void Del(); // удалить последний элемент
+    void ShowAll(); // вывести все элементы
+    void ShowByIndex(int idx); // вывести имя элемента по индексу (1-нумерация)
+    void Clear(); // очистить список (удалить все элементы)
+
+    virtual void HandleEvent(const TEvent& e); // передать событие всем элементам
+
+protected:
+    Node* head; // начало списка
+    Node* tail; // конец списка
+    int size; // максимальная ёмкость (0 – без ограничений)
+    int cur; // текущее количество элементов
+};
+
+
+Employee.cpp
+
+#include "Employee.h"// подключаем заголовок
+#include <iostream>
+using namespace std;
+
+// конструктор по умолчанию
+Employee::Employee() : Person(), salary(0.0f), position("") // вызываем конструктор Person, затем свои поля
+{
+}                                 // тело пустое
+
+// конструктор с параметрами
+Employee::Employee(string n, int a, float s, string p)
+    : Person(n, a), salary(s), position(p) // передаём параметры в Person, затем свои
+{
+}                                 // тело пустое
+
+// конструктор копирования
+Employee::Employee(const Employee& other)
+    : Person(other), salary(other.salary), position(other.position) // копируем базовую часть и свои поля
+{
+}                                 // тело пустое
+
+// деструктор (ничего не делает)
+Employee::~Employee() {}           // пустое тело
+
+// оператор присваивания
+Employee& Employee::operator=(const Employee& other)
+{
+    if (this == &other) return *this; // защита от самоприсваивания
+    Person::operator=(other); // присваиваем базовую часть через operator= Person
+    salary = other.salary; // копируем зарплату
+    position = other.position; // копируем должность
+    return *this; // возвращаем ссылку
+}
+
+// ввод данных сотрудника
+void Employee::Input()
+{
+    Person::Input(); // сначала вводим базовые данные (имя, возраст)
+    cout << "Введите зарплату: "; cin >> salary;
+    cout << "Введите должность: "; cin >> position;
+}
+
+// вывод информации о сотруднике
+void Employee::Show()
+{
+    Person::Show(); // выводим имя и возраст
+    cout << "Зарплата: " << salary << ", Должность: " << position << endl;
+}
+
+// обработчик событий для Employee
+void Employee::HandleEvent(const TEvent& e)
+{
+    if (e.what == evMessage && e.command == cmGet) // если команда "вывести имя"
+    {
+        cout << "Имя сотрудника: " << name << endl; // выводим имя (унаследованное поле)
+    }
+    else
+    {
+        Person::HandleEvent(e); // иначе передаём обработку базовому классу
+    }
+}
+
+
+Employee.h
+
+#pragma once
+#include "Person.h" // наследуем от Person
+
+class Employee : public Person // производный класс
+{
+public:
+    Employee(); // конструктор по умолчанию
+    Employee(string name, int age, float salary, string position); // с параметрами
+    Employee(const Employee& other); // конструктор копирования
+    virtual ~Employee(); // виртуальный деструктор
+
+    Employee& operator=(const Employee& other); // оператор присваивания
+
+    // селекторы
+    float GetSalary() const { return salary; }
+    string GetPosition() const { return position; }
+
+    // модификаторы
+    void SetSalary(float s) { salary = s; }
+    void SetPosition(string p) { position = p; }
+
+    // переопределение виртуальных методов
+    virtual void Input() override;
+    virtual void Show() override;
+    virtual void HandleEvent(const TEvent& e) override;
+
+protected:
+    float salary; // заработная плата
+    string position; // должность
+};
+
+
+Person.cpp
+
+#include "Person.h"
+#include <iostream>
+using namespace std;
+
+// конструктор по умолчанию
+Person::Person() : name(""), age(0) // инициализируем поля пустой строкой и нулём
+{
+}                                 // тело пустое
+
+// конструктор с параметрами
+Person::Person(string n, int a) : name(n), age(a) //иИнициализируем поля переданными значениями
+{
+}                                 // тело пустое
+
+// конструктор копирования
+Person::Person(const Person& other) : name(other.name), age(other.age) // копируем поля из other
+{
+}                                 // тело пустое
+
+// деструктор (ничего не делает, так как нет динамических ресурсов)
+Person::~Person() {}               // пустое тело
+
+// оператор присваивания
+Person& Person::operator=(const Person& other)
+{
+    if (this == &other) return *this; // защита от самоприсваивания
+    name = other.name; // копируем имя
+    age = other.age; // копируем возраст
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+// ввод данных о человеке
+void Person::Input()
+{
+    cout << "Введите имя: "; cin >> name;
+    cout << "Введите возраст: "; cin >> age;
+}
+
+// вывод информации о человеке
+void Person::Show()
+{
+    cout << "Имя: " << name << ", Возраст: " << age << endl;
+}
+
+// обработчик событий для Person
+void Person::HandleEvent(const TEvent& e)
+{
+    // Е=если событие – сообщение и команда – cmGet (вывести имя)
+    if (e.what == evMessage && e.command == cmGet)
+    {
+        cout << "Имя: " << name << endl;   // выводим имя
+    }
+    // другие команды не обрабатываем
+}
+
+
+Person.h
+
+#pragma once
+#include "Object.h" // наследуем от Object
+#include <string>
+#include <iostream>
+using namespace std;
+
+class Person : public Object // производный от Object
+{
+public:
+    Person(); // конструктор по умолчанию
+    Person(string name, int age); // конструктор с параметрами
+    Person(const Person& other); // конструктор копирования
+    virtual ~Person(); // виртуальный деструктор
+
+    Person& operator=(const Person& other); // оператор присваивания
+
+    // селекторы (геттеры)
+    string GetName() const { return name; }
+    int GetAge() const { return age; }
+
+    // модификаторы (сеттеры)
+    void SetName(string n) { name = n; }
+    void SetAge(int a) { age = a; }
+
+    // переопределение виртуальных методов базового класса
+    virtual void Input() override;
+    virtual void Show() override;
+    virtual void HandleEvent(const TEvent& e) override;
+
+protected:
+    string name; // имя человека
+    int age; // возраст
+};
+
+
+Object.h
+
+#pragma once
+#include "Event.h" // подключаем описание событий (нужно для HandleEvent)
+
+class Object // абстрактный класс – интерфейс для всех хранимых объектов
+{
+public:
+    Object() {} // конструктор по умолчанию (пустой)
+    virtual ~Object() {} // виртуальный деструктор (для корректного удаления производных)
+
+    virtual void Input() = 0; // чисто виртуальный метод: ввод данных (должен быть переопределён)
+    virtual void Show() = 0; // чисто виртуальный метод: вывод информации об объекте
+    virtual void HandleEvent(const TEvent& e) = 0; // обработка событий (чисто виртуальный)
+};
+
+
+Event.h
+
+#pragma once
+
+const int evNothing = 0; // пустое событие (событие обработано)
+const int evMessage = 100; // непустое событие (сообщение от пользователя)
+
+// коды команд (что нужно сделать)
+const int cmMake = 1; // создать группу (команда m)
+const int cmAdd = 2; // добавить элемент (команда +)
+const int cmDel = 3; // удалить элемент (команда -)
+const int cmShow = 4; // вывести всю группу (команда s)
+const int cmGet = 5; // вывести имя элемента по индексу (команда z)
+const int cmQuit = 101; // завершить работу (команда q)
+
+// структура, описывающая событие
+struct TEvent
+{
+    int what; // тип события (evNothing или evMessage)
+    union // объединение: разные интерпретации одних и тех же байтов
+    {
+        int command; // код команды (если событие – команда)
+        struct // альтернативная структура для параметров
+        {
+            int message;// дополнительный код
+            int a; // параметр команды (например, индекс элемента)
+        };
+    };
+};
