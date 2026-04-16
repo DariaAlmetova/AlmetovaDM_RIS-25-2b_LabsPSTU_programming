@@ -1,0 +1,123 @@
+#include <iostream>
+#include <string>
+#include <locale>
+using namespace std;
+
+class Computer {
+private:
+    string processor; // рроцессор
+    int ramSize; // объем ОП (в ГБ)
+    int hddSize; // объем ЖД (в ГБ)
+
+public:
+
+    // 1. Конструктор без параметров (по умолчанию)
+    Computer() {
+        cout << "Вызван конструктор без параметров" << endl;
+        processor = "Not specified";
+        ramSize = 0;
+        hddSize = 0;
+    }
+
+    // 2. Конструктор с параметрами
+    Computer(string proc, int ram, int hdd) {
+        cout << "Вызван конструктор с параметрами" << endl;
+        processor = proc;
+        ramSize = ram;
+        hddSize = hdd;
+    }
+
+    // 3. Конструктор копирования
+    Computer(const Computer& other) {
+        cout << "Вызван конструктор копирования" << endl;
+        processor = other.processor;
+        ramSize = other.ramSize;
+        hddSize = other.hddSize;
+    }
+
+    // Деструктор
+    ~Computer() {
+        cout << "Деструктор вызван для: " << processor << endl;
+    }
+
+    // Геттеры
+
+    string getProcessor() {
+        return processor;
+    }
+
+    int getRamSize() {
+        return ramSize;
+    }
+
+    int getHddSize() {
+        return hddSize;
+    }
+
+    // Сеттеры
+
+    void setProcessor(string proc) {
+        if (!proc.empty()) {
+            processor = proc;
+        }
+    }
+
+    void setRamSize(int ram) {
+        if (ram >= 1 && ram <= 256) {
+            ramSize = ram;
+        }
+    }
+
+    void setHddSize(int hdd) {
+        if (hdd >= 128 && hdd <= 10000) {
+            hddSize = hdd;
+        }
+    }
+
+    // метод для вывода информации
+    void Print() {
+        cout << "Процессор: " << processor << endl;
+        cout << "Объем ОП: " << ramSize << " ГБ" << endl;
+        cout << "Объем ЖД: " << hddSize << " ГБ" << endl;
+        cout << "------------------------" << endl;
+    }
+};
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    // 1. Вызов конструктора без параметров
+    cout << ">>> 1. Создание объекта конструктором без параметров:" << endl;
+    Computer comp1;
+    comp1.setProcessor("Intel Core i5-12400");
+    comp1.setRamSize(16);
+    comp1.setHddSize(512);
+    comp1.Print();
+    cout << endl;
+
+    // 2. Вызов конструктора с параметрами
+    cout << ">>> 2. Создание объекта конструктором с параметрами:" << endl;
+    Computer comp2("AMD Ryzen 7 5800X", 32, 1000);
+    comp2.Print();
+    cout << endl;
+
+    // 3. Вызов КОНСТРУКТОРА КОПИРОВАНИЯ
+    cout << ">>> 3. Создание объекта конструктором копирования:" << endl;
+    Computer comp3 = comp2; // копируем comp2 в comp3
+    comp3.setProcessor("AMD Ryzen 9 5950X"); // изменим процессор
+    comp3.Print();
+    cout << endl;
+
+    // показываем, что original объект не изменился
+    cout << ">>> Оригинал (comp2) остался без изменений:" << endl;
+    comp2.Print();
+    cout << endl;
+
+    // демонстрация работы геттеров
+    cout << ">>> Демонстрация геттеров:" << endl;
+    cout << "Процессор comp1: " << comp1.getProcessor() << endl;
+    cout << "ОП comp1: " << comp1.getRamSize() << " ГБ" << endl;
+    cout << "ЖД comp1: " << comp1.getHddSize() << " ГБ" << endl;
+
+    return 0;
+}
