@@ -1,0 +1,422 @@
+main.cpp
+
+#include "Object.h"
+#include "Pair.h"
+#include "Rational.h"
+#include "Vector.h"
+#include <iostream>
+using namespace std;
+
+int main()
+{
+    setlocale(LC_ALL, "Russian");
+
+    // создаём вектор на 3 элемента
+    Vector v(3); // вызывается конструктор Vector(3) — выделяется массив из 3 указателей
+
+    // создаём объекты
+    Pair p(5, 3); // конструктор Pair(int,int) создаёт пару (5,3)
+    Rational r1(2, 3); // дробь 2/3
+    Rational r2(6, 8); // дробь 6/8 (будет сокращена до 3/4)
+
+    // добавляем указатели в вектор
+    v.Add(&p); // добавляем адрес объекта p (тип Pair) — неявное преобразование Pair* -> Object*
+    v.Add(&r1); // добавляем адрес r1 (Rational* -> Object*)
+    v.Add(&r2); // добавляем адрес r2
+
+    // выводим все объекты через полиморфный оператор <<
+    cout << "Содержимое вектора:" << endl;
+    cout << v; // вызов operator<<(cout, v) — внутри цикл, для каждого указателя вызывается Show()
+
+    // демонстрация работы методов
+    cout << "\nДемонстрация операций с дробями:" << endl;
+    cout << r1 << " + " << r2 << " = " << (r1 + r2) << endl;
+    cout << r1 << " - " << r2 << " = " << (r1 - r2) << endl;
+    cout << r1 << " * " << r2 << " = " << (r1 * r2) << endl;
+
+    cout << "\nДемонстрация вычитания пар:" << endl;
+    Pair p2(8, 2);
+    Pair p3(5, 1);
+    cout << p2 << " - " << p3 << " = " << (p2 - p3) << endl;
+
+    return 0;
+}
+
+
+Vector.cpp
+
+#include "Vector.h"
+
+Vector::Vector(void) // создаёт пустой вектор
+{
+    beg = 0; // обнуляем указатель (нет массива)
+    size = 0;
+    cur = 0;
+}
+
+Vector::Vector(int n) // n — максимальное количество элементов
+{
+    beg = new Object * [n]; // выделяем память под массив указателей на Object
+    cur = 0;
+    size = n;
+}
+
+Vector::~Vector(void)
+{
+    if (beg != 0) delete[] beg; // если массив был выделен, освобождаем память
+    beg = 0;
+}
+
+void Vector::Add(Object* p)
+{
+    if (cur < size) // если ещё есть свободное место
+    {
+        beg[cur] = p; // помещаем указатель в текущую позицию
+        cur++;
+    }
+}
+
+ostream& operator<<(ostream& out, const Vector& v)
+{
+    if (v.size == 0) out << "Empty" << endl; // если вектор пуст, выводим "Empty"
+    Object** p = v.beg; // устанавливаем временный указатель на начало массив
+    for (int i = 0; i < v.cur; i++) // проходим по всем добавленным элементам
+    {
+        (*p)->Show(); // полиморфный вызов. вызываем виртуальную функцию Show() для объекта. позднее связывание: вызывается версия Show() в зависимости от реального типа объекта
+        p++; // перемещаем указатель на следующий элемент массива
+    }
+    return out; // возвращаем поток
+}
+
+
+Vector.h
+
+#pragma once
+#include "Object.h"
+#include <iostream>
+using namespace std;
+
+class Vector // класс-контейнер для хранения указателей на объекты иерархии Object
+{
+public:
+    Vector(void); // конструктор без параметров (создаёт пустой вектор)
+    Vector(int n); // конструктор с параметром — создаёт вектор на n элементов (массив указателей)
+    ~Vector(void); // деструктор освобождает память из-под массива указателей
+
+    void Add(Object* p); // добавляет указатель на объект в вектор (если есть место)
+
+    friend ostream& operator<<(ostream& out, const Vector& v); // дружественная функция вывода вектора
+
+private:
+    Object** beg; // указатель на начало массива указателей на Object
+    int size; // максимальный размер вектора
+    int cur; // текущая позиция (количество добавленных элементов)
+};
+
+
+Rational.cpp
+
+#include "Rational.h"
+
+Rational::Rational(void) : Pair()
+{
+    first = 0;
+    second = 1;
+}
+
+Rational::~Rational(void) {}
+
+Rational::Rational(int num, int den) : Pair(num, den)
+{
+    if (second == 0)
+    {
+        cout << "Ошибка: знаменатель не может быть нулем! Установлено значение 1." << endl;
+        second = 1;
+    }
+    Reduce();
+}
+
+Rational::Rational(const Rational& r) : Pair(r) {}
+
+void Rational::Set_numerator(int num)
+{
+    first = num;
+    Reduce();
+}
+
+void Rational::Set_denominator(int den)
+{
+    if (den != 0)
+    {
+        second = den;
+        Reduce();
+    }
+    else
+    {
+        cout << "Ошибка: знаменатель не может быть нулем!" << endl;
+    }
+}
+
+// алгоритм Евклида для нахождения НОД
+int Rational::gcd(int a, int b) const
+{
+    a = abs(a);
+    b = abs(b);
+    while (b != 0)
+    {
+        int temp = b;
+        b = a % b;
+        a = temp;
+    }
+    return a;
+}
+
+void Rational::Reduce()
+{
+    if (second == 0) return;
+    int divisor = gcd(first, second);
+    if (divisor != 0)
+    {
+        first /= divisor;
+        second /= divisor;
+    }
+    if (second < 0) // если знаменатель отрицательный
+    {
+        first = -first; // переносим минус в числитель
+        second = -second; // делаем знаменатель положительным
+    }
+}
+
+Rational& Rational::operator=(const Rational& r)
+{
+    if (&r == this) return *this;
+    first = r.first;
+    second = r.second;
+    return *this;
+}
+
+Rational Rational::operator+(const Rational& r) const
+{
+    Rational result;
+    result.first = this->first * r.second + r.first * this->second; // числитель суммы
+    result.second = this->second * r.second;
+    result.Reduce(); // сокращаем результат
+    return result;
+}
+
+Rational Rational::operator-(const Rational& r) const
+{
+    Rational result;
+    result.first = this->first * r.second - r.first * this->second;
+    result.second = this->second * r.second;
+    result.Reduce();
+    return result;
+}
+
+Rational Rational::operator*(const Rational& r) const
+{
+    Rational result;
+    result.first = this->first * r.first;
+    result.second = this->second * r.second;
+    result.Reduce();
+    return result;
+}
+
+istream& operator>>(istream& in, Rational& r)
+{
+    cout << "Введите числитель: ";
+    in >> r.first;
+    cout << "Введите знаменатель: ";
+    in >> r.second;
+    if (r.second == 0)
+    {
+        cout << "Ошибка: знаменатель не может быть нулем! Установлено значение 1." << endl;
+        r.second = 1;
+    }
+    r.Reduce();
+    return in;
+}
+
+ostream& operator<<(ostream& out, const Rational& r)
+{
+    if (r.second == 1)
+        out << r.first;
+    else if (r.first == 0)
+        out << 0;
+    else
+        out << r.first << "/" << r.second;
+    return out;
+}
+
+void Rational::Show()
+{
+    cout << "Rational: " << *this << endl; // используем перегруженный operator<< для вывода дроби
+}
+
+
+Rational.h
+
+#pragma once
+#include "Pair.h"
+#include <cmath>
+
+class Rational : public Pair // Rational публично наследует Pair
+{
+public:
+    Rational(void); // конструктор без параметров (дробь 0/1)
+    Rational(int, int); // конструктор с параметрами (числитель, знаменатель)
+    Rational(const Rational&);
+    ~Rational(void);
+
+    // селекторы (используют унаследованные поля first и second)
+    int Get_numerator() const { return first; }
+    int Get_denominator() const { return second; }
+
+    // модификаторы
+    void Set_numerator(int); // установить числитель
+    void Set_denominator(int);
+
+    void Reduce(); // метод сокращения дроби
+
+    Rational& operator=(const Rational&);
+    Rational operator+(const Rational&) const; // сложение дробей
+    Rational operator-(const Rational&) const;
+    Rational operator*(const Rational&) const;
+
+    friend istream& operator>>(istream&, Rational&); // друг: ввод дроби
+    friend ostream& operator<<(ostream&, const Rational&);
+
+    virtual void Show() override; // переопределение Show для вывода дроби в удобном формате
+
+private:
+    int gcd(int, int) const; // вспомогательный метод для нахождения НОД (алгоритм Евклида)
+};
+
+
+Pair.cpp
+
+#include "Pair.h"
+
+Pair::Pair(void) : first(0), second(0) {} // конструктор без параметров. инициализирует first и second нулями через список инициализации
+
+Pair::~Pair(void) {} // деструктор
+
+Pair::Pair(int f, int s) : first(f), second(s) {} // конструктор с параметрами
+
+Pair::Pair(const Pair& p) : first(p.first), second(p.second) {} // копирует поля из объекта p. конструктор копирования
+
+void Pair::Set_first(int f) { first = f; } // модификаторы. определение метода установки first
+void Pair::Set_second(int s) { second = s; }
+
+bool Pair::IsEqual(const Pair& p) const // константный метод проверки на равенство
+{
+    return (first == p.first && second == p.second); // возвращает true, если оба поля равны
+}
+
+int Pair::Multiply() const // метод перемножения полей
+{
+    return first * second;
+}
+
+Pair& Pair::operator=(const Pair& p) // оператор присваивания. возвращает ссылку на текущий объект
+{
+    if (&p == this) return *this;
+    first = p.first; // копируем first
+    second = p.second;
+    return *this; // возвращаем ссылку на себя
+}
+
+Pair Pair::operator-(const Pair& p) const // оператор вычитания пар
+{
+    Pair result; // создаём временный объект
+    result.first = this->first - this->second; // first = first текущего - second текущего
+    result.second = p.first - p.second; // second = first переданного - second переданного
+    return result; // возвращаем результат
+}
+
+istream& operator>>(istream& in, Pair& p) // глобальная функция ввода (друг класса)
+{
+    cout << "Введите first: ";
+    in >> p.first;
+    cout << "Введите second: ";
+    in >> p.second;
+    return in;
+}
+
+ostream& operator<<(ostream& out, const Pair& p) // глобальная функция вывода (друг класса)
+{
+    out << "(" << p.first << ", " << p.second << ")";
+    return out;
+}
+
+void Pair::Show() // переопределённый метод Show (из Object). реализация виртуальной функции
+{
+    cout << "Pair: first = " << first << ", second = " << second << endl;
+}
+
+
+Pair.h
+
+#pragma once
+#include "Object.h"
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Pair : public Object // класс Pair публично наследует Object (теперь Pair — конкретный класс, если переопределит Show)
+{
+public:
+    // конструкторы
+    Pair(void); // без параметров
+    Pair(int, int); // с параметрами
+    Pair(const Pair&); // копирования
+
+    // деструктор
+    virtual ~Pair(void); // виртуальный деструктор (переопределяет Object:: ~Object)
+
+    // селекторы
+    int Get_first() const { return first; }
+    int Get_second() const { return second; }
+
+    // модификаторы
+    void Set_first(int); // устанавливает новое значение для first
+    void Set_second(int);
+
+    // методы
+    bool IsEqual(const Pair&) const; // сравнивает текущую пару с другой на равенство
+    int Multiply() const; // возвращает произведение first и second
+
+    // перегрузка операций
+    Pair& operator=(const Pair&); // оператор присваивания
+    Pair operator-(const Pair&) const; // вычитание пар по формуле (a,b)-(c,d) = (a-b, c-d)
+
+    friend istream& operator>>(istream&, Pair&); // для ввода из потока
+    friend ostream& operator<<(ostream&, const Pair&); // для вывода в поток
+
+    // переопределение чисто виртуальной функции
+    virtual void Show() override; // override явно указывает, что переопределяем метод базового класса
+
+protected:
+    int first; // первое число пары
+    int second;
+};
+
+
+Object.cpp
+
+#include "Object.h" // подключаем заголовочный файл
+
+Object::Object(void) {} // реализация конструктора без параметров. тело конструктора пустое — инициализация не требуется
+Object::~Object(void) {} // реализация деструктора. тело деструктора пустое — нет динамических ресурсов
+
+
+Object.h
+
+#pragma once // запрещает многократное включение этого заголовочного файла
+class Object // объявление абстрактного базового класса Object
+{
+public:
+    Object(void); // конструктор без параметров (будет определён в .cpp)
+    virtual ~Object(void); // виртуальный деструктор (обеспечивает правильное удаление производных объектов через указатель на Object)
+    virtual void Show() = 0; // чисто виртуальная функция - делает класс абстрактным, требует переопределения в производных классах
+};
