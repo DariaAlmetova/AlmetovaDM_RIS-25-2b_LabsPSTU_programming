@@ -1,0 +1,380 @@
+10lab.cpp
+
+#include "Money.h"
+#include "file_work.h"
+#include <iostream>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    char file_name[30]; // массив для хранения имени файла
+    int choice, result, K; // переменные: выбор меню, результат, количество записей
+    Money val; // переменная для хранения заданной суммы (для сравнения)
+
+    do {
+        cout << "\n===== МЕНЮ =====\n";
+        cout << "1. Создать файл\n";
+        cout << "2. Печать файла\n";
+        cout << "3. Удалить записи, НЕ равные заданной\n";
+        cout << "4. Уменьшить записи, равные заданной, в 2 раза\n";
+        cout << "5. Добавить K записей в начало файла\n";
+        cout << "0. Выход\n";
+        cout << "Ваш выбор: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1: // создание файла
+            cout << "Имя файла: ";
+            cin >> file_name;
+            result = make_file(file_name);
+            if (result < 0) cout << "Ошибка создания файла!\n";
+            else cout << "Создано " << result << " записей.\n";
+            break;
+
+        case 2: // печать файла
+            cout << "Имя файла: ";
+            cin >> file_name;
+            result = print_file(file_name);
+            if (result < 0) cout << "Ошибка открытия файла!\n";
+            else if (result == 0) cout << "Файл пуст.\n";
+            else cout << "Всего записей: " << result << endl;
+            break;
+
+        case 3: // удаление записей, не равных заданной
+            cout << "Имя файла: ";
+            cin >> file_name;
+            cout << "Введите сумму для сравнения (рубли,копейки): ";
+            cin >> val;          // Ввод эталонной суммы
+            result = delete_not_equal(file_name, val);
+            if (result < 0) cout << "Ошибка открытия файла!\n";
+            else cout << "Оставлено записей (равных заданной): " << result << endl;
+            break;
+
+        case 4: // уменьшение записей, равных заданной, в 2 раза
+            cout << "Имя файла: ";
+            cin >> file_name;
+            cout << "Введите сумму для поиска: ";
+            cin >> val;
+            result = decrease_equal(file_name, val);
+            if (result < 0) cout << "Ошибка открытия файла!\n";
+            else cout << "Изменено записей: " << result << endl;
+            break;
+
+        case 5: // добавление K записей в начало файла
+            cout << "Имя файла: ";
+            cin >> file_name;
+            cout << "Сколько записей добавить в начало? ";
+            cin >> K;
+            result = add_to_begin(file_name, K);
+            if (result < 0) cout << "Ошибка открытия файла!\n";
+            else cout << "Добавлено " << result << " записей в начало.\n";
+            break;
+
+        case 0: // выход из программы
+            cout << "Выход.\n";
+            break;
+
+        default:
+            cout << "Неверный пункт меню!\n";
+        }
+    } while (choice != 0); // повторяем, пока не выбран выход
+
+    return 0;
+}
+
+
+
+file_work.h
+
+#include "Money.h"
+#include <cstdio> // функции remove и rename для работы с файлами
+using namespace std;
+
+// функция создания файла (перезапись с вводом данных с клавиатуры)
+int make_file(const char* f_name) {
+    // открываем файл для записи в режиме out|trunc (создание/перезапись)
+    fstream stream(f_name, ios::out | ios::trunc);
+    if (!stream) return -1; // если не удалось открыть, возвращаем -1 (ошибка)
+
+    int n;
+    cout << "Количество записей: ";
+    cin >> n;
+
+    Money m; // временный объект для ввода
+    for (int i = 0; i < n; ++i) {
+        cout << "Введите сумму (рубли,копейки): ";
+        cin >> m; // ввод с консоли с помощью перегруженного >>
+        stream << m; // запись в файл с помощью перегруженного << для fstream
+    }
+    stream.close();
+    return n;
+}
+
+// функция печати содержимого файла на экран
+int print_file(const char* f_name) {
+    fstream stream(f_name, ios::in); // открываем файл для чтения
+    if (!stream) return -1; // ошибка открытия
+
+    Money m; // временный объект
+    int i = 0; // счётчик записей
+    while (stream >> m) { // читаем объекты из файла (перегруженный >> для fstream)
+        cout << ++i << ": " << m << endl; // выводим номер и сумму (перегруженный << для cout)
+    }
+    stream.close();
+    return i;
+}
+
+// функция удаления записей, НЕ равных заданному значению
+int delete_not_equal(const char* f_name, const Money& val) {
+    fstream in(f_name, ios::in); // открываем исходный файл для чтения
+    if (!in) return -1; // ошибка открытия
+
+    fstream out("temp.txt", ios::out); // открываем временный файл для записи
+    Money m; // буфер для чтения
+    int kept = 0; // счётчик оставленных записей (равных val)
+
+    while (in >> m) { // читаем каждую запись из исходного файла
+        if (m == val) { // если запись равна заданному значению
+            out << m; // записываем её во временный файл
+            kept++;
+        }
+        // если запись НЕ равна val – ничего не записываем (т.е. удаляем)
+    }
+    in.close(); // закрываем исходный файл
+    out.close(); // закрываем временный файл
+
+    remove(f_name); // удаляем исходный файл
+    rename("temp.txt", f_name); // переименовываем временный в исходное имя
+    return kept; // возвращаем количество оставленных записей
+}
+
+// функция уменьшения записей, равных заданному значению, в два раза
+int decrease_equal(const char* f_name, const Money& val) {
+    fstream in(f_name, ios::in); // открываем исходный файл для чтения
+    if (!in) return -1; // ошибка открытия
+
+    fstream out("temp.txt", ios::out); // открываем временный файл для записи
+    Money m; // буфер для чтения
+    int changed = 0; // счётчик изменённых записей
+
+    while (in >> m) { // читаем каждую запись
+        if (m == val) { // если запись равна заданному значению
+            m = m * 0.5; // уменьшаем в 2 раза (умножение на 0.5)
+            changed++; // увеличиваем счётчик
+        }
+        out << m; // записываем (возможно, изменённую) запись во временный файл
+    }
+    in.close();
+    out.close();
+
+    remove(f_name);
+    rename("temp.txt", f_name);
+    return changed;
+}
+
+// функция добавления K записей в начало файла
+int add_to_begin(const char* f_name, int K) {
+    // Открываем исходный файл для чтения
+    fstream in(f_name, ios::in);
+    if (!in) return -1;
+
+    // сначала подсчитываем количество записей в файле
+    Money temp; // временная переменная
+    int count = 0; // счётчик записей
+    while (in >> temp) {  // читаем все записи, просто чтобы узнать их количество
+        count++;
+    }
+    in.clear(); // сбрасываем флаги ошибок (в частности eof)
+    in.seekg(0, ios::beg); // возвращаем указатель чтения в начало файла
+
+    // выделяем динамический массив для хранения старых записей
+    Money* old = new Money[count]; // массив объектов Money размером count
+    for (int i = 0; i < count; ++i) {
+        in >> old[i]; // считываем все записи в массив
+    }
+    in.close(); // закрываем исходный файл
+
+    // открываем временный файл для записи
+    fstream out("temp.txt", ios::out);
+    if (!out) { // если не удалось открыть
+        delete[] old; // освобождаем память
+        return -1; // возвращаем ошибку
+    }
+
+    // вводим K новых записей и сразу пишем их во временный файл
+    Money new_m; // временная переменная для новой записи
+    for (int i = 0; i < K; ++i) {
+        cout << "Новая запись " << i + 1 << ": ";
+        cin >> new_m;
+        out << new_m; // запись во временный файл
+    }
+
+    // затем записываем во временный файл старые записи (сохранённые в массиве)
+    for (int i = 0; i < count; ++i) {
+        out << old[i]; // запись каждой старой записи
+    }
+    out.close(); // закрываем временный файл
+
+    delete[] old; // освобождаем динамическую память
+
+    // заменяем исходный файл на временный
+    remove(f_name); // удаляем исходный файл
+    rename("temp.txt", f_name); // переименовываем временный в исходное имя
+    return K; // возвращаем количество добавленных записей
+}
+
+
+
+Money.cpp
+
+#include "Money.h"
+
+// реализация приватного метода normalize – приводит копейки в диапазон 0..99
+void Money::normalize() {
+    if (kop >= 100) { // если копеек 100 или больше
+        rub += kop / 100; // добавляем целые рубли (копейки/100)
+        kop %= 100; // оставляем остаток копеек (0..99)
+    }
+    else if (kop < 0) { // если копейки отрицательные
+        long need_rub = (-kop + 99) / 100; // вычисляем, сколько рублей нужно вычесть
+        rub -= need_rub; // вычитаем рубли
+        kop += need_rub * 100; // добавляем 100 копеек за каждый вычтенный рубль
+        if (kop < 0) kop = 0; // защита от отрицательных копеек
+    }
+}
+
+// конструктор по умолчанию: сумма 0 рублей 0 копеек
+Money::Money() : rub(0), kop(0) {}
+
+// конструктор с параметрами: задаём рубли и копейки, затем нормализуем
+Money::Money(long r, int k) : rub(r), kop(k) {
+    normalize();
+}
+
+// конструктор копирования: создаём объект как копию другого
+Money::Money(const Money& other) : rub(other.rub), kop(other.kop) {}
+
+// деструктор
+Money::~Money() {}
+
+// перегрузка оператора присваивания
+Money& Money::operator=(const Money& other) {
+    if (this != &other) { // проверка на самоприсваивание
+        rub = other.rub; // копируем рубли
+        kop = other.kop; // копируем копейки
+    }
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+// перегрузка оператора сравнения "равно"
+bool Money::operator==(const Money& other) const {
+    return (rub == other.rub && kop == other.kop); // сравниваем оба поля
+}
+
+// перегрузка оператора сравнения "не равно"
+bool Money::operator!=(const Money& other) const {
+    return !(*this == other);
+}
+
+// перегрузка оператора сложения двух денежных сумм
+Money Money::operator+(const Money& other) const {
+    return Money(rub + other.rub, kop + other.kop); // складываем поля, нормализация в конструкторе
+}
+
+// перегрузка оператора вычитания
+Money Money::operator-(const Money& other) const {
+    return Money(rub - other.rub, kop - other.kop); // вычитаем поля, нормализация в конструкторе
+}
+
+// умножение денежной суммы на дробное число (например, 0.5 для уменьшения в 2 раза)
+Money Money::operator*(double factor) const {
+    double total_kop = (rub * 100 + kop) * factor; // переводим всё в копейки, умножаем
+    long new_rub = static_cast<long>(total_kop / 100); // целые рубли из копеек
+    int new_kop = static_cast<int>(total_kop - new_rub * 100); // остаток копеек
+    return Money(new_rub, new_kop); // создаём и возвращаем новую сумму
+}
+
+// деление одной денежной суммы на другую – результат вещественное число
+double Money::operator/(const Money& other) const {
+    double this_val = rub * 100 + kop; // текущая сумма в копейках
+    double other_val = other.rub * 100 + other.kop; // делитель в копейках
+    if (other_val == 0) {  // защита от деления на ноль
+        cerr << "Ошибка: деление на ноль!" << endl;
+        return 0;
+    }
+    return this_val / other_val; // возвращаем вещественное частное
+}
+
+// перегрузка оператора вывода в стандартный поток (консоль)
+ostream& operator<<(ostream& out, const Money& m) {
+    out << m.rub << ","; // выводим рубли и запятую
+    if (m.kop < 10) out << "0"; // если копеек меньше 10, добавляем ведущий ноль
+    out << m.kop; // выводим копейки
+    return out; // возвращаем поток для цепочек операций
+}
+
+// перегрузка оператора ввода из стандартного потока (консоль)
+istream& operator>>(istream& in, Money& m) {
+    char comma; // переменная для запятой-разделителя
+    in >> m.rub >> comma >> m.kop; // читаем рубли, запятую, копейки
+    if (comma != ',') in.setstate(ios::failbit); // если разделитель не запятая – ошибка
+    m.normalize(); // нормализуем введённое значение
+    return in; // возвращаем поток
+}
+
+// перегрузка оператора вывода в файловый поток (запись в файл)
+fstream& operator<<(fstream& fout, const Money& m) {
+    fout << m.rub << "\n" << m.kop << "\n"; // записываем рубли и копейки с переводом строки
+    return fout;  // возвращаем поток
+}
+
+// перегрузка оператора ввода из файлового потока (чтение из файла)
+fstream& operator>>(fstream& fin, Money& m) {
+    fin >> m.rub >> m.kop; // читаем рубли и копейки из файла
+    m.normalize();
+    return fin; // возвращаем поток
+}
+
+
+
+Money.h
+
+#pragma once
+#include <iostream>
+#include <fstream>
+#include <string>
+using namespace std;
+
+class Money {
+private:
+    long rub; // поле для хранения рублей (целая часть)
+    int kop; // поле для хранения копеек (дробная часть, 0..99)
+    void normalize(); // приватный метод для нормализации копеек (перенос 100 копеек в 1 рубль)
+
+public:
+    Money(); // конструктор по умолчанию (создаёт сумму 0,00)
+    Money(long r, int k); // конструктор с параметрами (рубли, копейки)
+    Money(const Money& other); // конструктор копирования
+    ~Money(); // деструктор
+
+    Money& operator=(const Money& other); // перегрузка оператора присваивания
+
+    bool operator==(const Money& other) const; // перегрузка оператора сравнения ==
+    bool operator!=(const Money& other) const; // перегрузка оператора сравнения !=
+
+    Money operator+(const Money& other) const; // перегрузка оператора сложения
+    Money operator-(const Money& other) const; // перегрузка оператора вычитания
+    Money operator*(double factor) const; // умножение суммы на дробное число
+    double operator/(const Money& other) const; // деление суммы на сумму (результат double)
+
+    // дружественные функции для ввода/вывода в стандартные потоки (консоль)
+    friend ostream& operator<<(ostream& out, const Money& m);
+    friend istream& operator>>(istream& in, Money& m);
+
+    // дружественные функции для ввода/вывода в файловые потоки (чтение/запись в файл)
+    friend fstream& operator<<(fstream& fout, const Money& m);
+    friend fstream& operator>>(fstream& fin, Money& m);
+};
+}
+
