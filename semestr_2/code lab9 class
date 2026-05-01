@@ -1,0 +1,898 @@
+9lab1.cpp
+
+  #include "Set1.h"
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+
+    try { // начало блока try – перехват исключений
+        Set a(2); // создание множества a на 2 элемента (инициализация нулями)
+        cout << "a = " << a << endl; // вывод множества (оператор << перегружен)
+        cout << "Размер a = " << (int)a << endl; // приведение к int – размер (2)
+
+        a = a + 10; // добавление элемента 10 (оператор +)
+        a = a + 20; // добавление элемента 20
+        cout << "a после добавления 10 и 20: " << a << endl; // вывод: 0 0 10 20
+
+
+        //a.Remove(20); // удаляем элемент 20
+        //cout << "После Remove(20): " << a << endl; // 0 0 10
+
+        //a.Remove(100); // попытка удалить несуществующий -> исключение 6
+
+        //cout << "Элемент с индексом 1: " << a[1] << endl; // доступ по индексу (второй элемент)
+
+        Set b(2); // создание множества b на 2 элемента
+        b = b + 20; // добавление 20
+        b = b + 30; // добавление 30
+        cout << "b = " << b << endl;
+
+        Set c = a * b; // пересечение множеств (оператор *)
+        cout << "Пересечение a и b: " << c << endl; // вывод общих элементов (20)
+
+        --a; // удаление последнего элемента (префиксный --)
+        cout << "После удаления последнего: " << a << endl; // стало: 0 0 10
+        --a; // удалить ещё один (останется 0 0)
+        --a; // попытка удалить из пустого – исключение 5
+    }
+    catch (int code) { // обработчик исключений типа int
+        switch (code) { // анализ кода ошибки
+        case 1: cout << "Ошибка 1: размер больше MAX_SIZE" << endl; break;
+        case 2: cout << "Ошибка 2: индекс меньше 0" << endl; break;
+        case 3: cout << "Ошибка 3: индекс >= текущего размера" << endl; break;
+        case 4: cout << "Ошибка 4: добавление при достижении MAX_SIZE" << endl; break;
+        case 5: cout << "Ошибка 5: удаление из пустого множества" << endl; break;
+        default: cout << "Неизвестная ошибка" << endl;
+        }
+    }
+    return 0;
+}
+
+
+
+
+Set1.h
+
+#pragma once
+#include <iostream>
+using namespace std;
+
+const int MAX_SIZE = 30; // максимально допустимый размер множества
+
+class Set { // объявление класса Set
+    int size; // текущее количество элементов
+    int* data; // указатель на динамический массив целых чисел
+public:
+    Set() : size(0), data(nullptr) {} // конструктор по умолчанию (пустое множество)
+
+    Set(int s); // конструктор с размером (инициализирует нулями)
+    Set(int s, int* arr); // конструктор с массивом (копирует данные)
+    Set(const Set& other); // конструктор копирования
+    ~Set(); // деструктор
+
+    const Set& operator=(const Set& other); // оператор присваивания
+    int operator[](int i); // оператор доступа по индексу
+    operator int() const; // оператор приведения к int (возвращает size)
+    Set operator*(const Set& other) const; // пересечение множеств
+    Set operator+(int val); // добавление элемента в конец
+    Set operator--(); // префиксный декремент – удаление последнего
+    //void Remove(int value);
+
+    // дружественные операторы ввода/вывода
+    friend ostream& operator<<(ostream& out, const Set& s);
+    friend istream& operator>>(istream& in, Set& s);
+};
+
+
+
+Set1.cpp
+
+#include "Set1.h"
+
+// конструктор с размером
+Set::Set(int s) {
+    if (s > MAX_SIZE) throw 1; // если размер больше MAX_SIZE – исключение 1
+    size = s; // сохраняем размер
+    data = new int[size]; // выделяем память под массив
+    for (int i = 0; i < size; ++i) data[i] = 0; // заполняем нулями
+}
+
+// конструктор с массивом
+Set::Set(int s, int* arr) {
+    if (s > MAX_SIZE) throw 1; // проверка на превышение MAX_SIZE
+    size = s;
+    data = new int[size];
+    for (int i = 0; i < size; ++i) data[i] = arr[i]; // копируем данные из arr
+}
+
+// конструктор копирования
+Set::Set(const Set& other) {
+    size = other.size; // копируем размер
+    data = new int[size]; // выделяем новую память
+    for (int i = 0; i < size; ++i) data[i] = other.data[i]; // копируем элементы
+}
+
+// деструктор
+Set::~Set() {
+    delete[] data; // освобождаем динамическую память
+}
+
+// оператор присваивания
+const Set& Set::operator=(const Set& other) {
+    if (this == &other) return *this; // защита от самоприсваивания
+    delete[] data; // удаляем старые данные
+    size = other.size; // копируем размер
+    data = new int[size]; // выделяем новую память
+    for (int i = 0; i < size; ++i) data[i] = other.data[i]; // копируем элементы
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+// оператор доступа по индексу
+int Set::operator[](int i) {
+    if (i < 0) throw 2; // тндекс меньше 0 – исключение 2
+    if (i >= size) throw 3; // индекс выходит за границы – исключение 3
+    return data[i]; // возвращаем элемент
+}
+
+// оператор приведения к int
+Set::operator int() const {
+    return size; // возвращаем текущий размер
+}
+
+// оператор пересечения множеств
+Set Set::operator*(const Set& other) const {
+    // определяем максимально возможный размер результата (не больше меньшего из двух)
+    int maxSize = (size < other.size) ? size : other.size;
+    int* temp = new int[maxSize]; // временный массив для общих элементов
+    int k = 0; // счётчик найденных общих элементов
+    for (int i = 0; i < size; ++i) { // перебираем элементы первого множества
+        for (int j = 0; j < other.size; ++j) { // перебираем элементы второго
+            if (data[i] == other.data[j]) { // если элемент общий
+                temp[k++] = data[i]; // добавляем во временный массив
+                break; // выходим из внутреннего цикла (чтобы не дублировать)
+            }
+        }
+    }
+    Set result(k, temp); // создаём новое множество из найденных элементов
+    delete[] temp; // освобождаем временный массив
+    return result; // возвращаем результат
+}
+
+// оператор добавления элемента (в конец)
+Set Set::operator+(int val) {
+    if (size + 1 > MAX_SIZE) throw 4; // если новый размер превысит MAX_SIZE – исключение 4
+    Set temp(size + 1, data); // создаём временное множество с размером на 1 больше
+    temp.data[size] = val; // добавляем новый элемент в конец
+    return temp; // возвращаем новое множество
+}
+
+// префиксный оператор -- (удаление последнего элемента)
+Set Set::operator--() {
+    if (size == 0) throw 5; // если множество пусто – исключение 5
+    if (size == 1) { // если был один элемент
+        delete[] data; // удаляем массив
+        data = nullptr; // обнуляем указатель
+        size = 0; // размер становится 0
+        return *this; // возвращаем текущий объект (пустое множество)
+    }
+    // если элементов больше одного:
+    Set temp(size, data); // копируем текущее множество во временное
+    delete[] data; // удаляем старый массив
+    size--; // уменьшаем размер
+    data = new int[size]; // выделяем новый массив меньшего размера
+    for (int i = 0; i < size; ++i) data[i] = temp.data[i]; // копируем данные (кроме последнего)
+    return *this; // возвращаем текущий объект
+}
+
+// удаление элемента по значению (первое вхождение)
+//void Set::Remove(int value) {
+//    int index = -1;
+//    for (int i = 0; i < size; ++i) {
+//        if (data[i] == value) {
+//            index = i;
+//            break;
+//        }
+//    }
+//    if (index == -1) throw 6; // код ошибки: элемент не найден
+//
+//    // сдвиг элементов влево
+//    for (int i = index; i < size - 1; ++i) {
+//        data[i] = data[i + 1];
+//    }
+//    --size;
+//}
+
+// дружественный оператор вывода
+ostream& operator<<(ostream& out, const Set& s) {
+    if (s.size == 0) out << "Empty"; // если пусто – выводим "Empty"
+    else {
+        for (int i = 0; i < s.size; ++i) // иначе выводим все элементы через пробел
+            out << s.data[i] << " ";
+    }
+    return out; // возвращаем поток для цепочек вывода
+}
+
+// дружественный оператор ввода
+istream& operator>>(istream& in, Set& s) {
+    for (int i = 0; i < s.size; ++i) { // ввод каждого элемента
+        cout << "> "; // приглашение
+        in >> s.data[i]; // чтение значения
+    }
+    return in; // возвращаем поток
+}
+
+
+
+9lab2.cpp
+
+#include "Set2.h"
+#include "Error2.h" // подключение класса исключений Error
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    // блок 1: проверка исключения 1 (размер больше MAX_SIZE)
+    try { // начало контролируемого блока
+        Set x(35); // попытка создать множество из 35 элементов (MAX_SIZE=30)
+    }
+    catch (Error& e) { // перехват исключения типа Error
+        e.what(); // вывод сообщения об ошибке
+    }
+
+    // блок 2: проверка исключения 3 (индекс >= размера)
+    try {
+        Set a(2); // создаём множество на 2 элемента (оба 0)
+        a = a + 5; // добавляем 5 -> теперь 3 элемента: 0,0,5
+        a = a + 10; // добавляем 10 -> теперь 4 элемента: 0,0,5,10
+        cout << a[2] << endl; // пытаемся вывести элемент с индексом 2 (третий элемент, он есть: 5). при a[5] - ошибка
+    }
+    catch (Error& e) {
+        e.what();
+    }
+
+    // блок 3: проверка исключения 4 (добавление при достижении MAX_SIZE)
+    try {
+        Set b(30); // создаём множество максимального размера (30 элементов, все 0)
+        b = b + 100; // пытаемся добавить 101-й элемент -> исключение 4
+    }
+    catch (Error& e) {
+        e.what();
+    }
+
+    // блок 4: проверка исключения 5 (удаление из пустого множества)
+    try {
+        Set c; // создаём пустое множество (size=0)
+        --c; // пытаемся удалить последний элемент -> исключение 5
+    }
+    catch (Error& e) {
+        e.what();
+    }
+
+    //try {
+    //    Set d(2); // создаём множество на 2 элемента (0,0)
+    //    d = d + 10; // 0,0,10
+    //    d = d + 20; // 0,0,10,20
+    //    d = d + 30; // 0,0,10,20,30
+    //    cout << "d = " << d << endl;
+
+    //    d.Remove(20); // удаляем элемент 20
+    //    cout << "После Remove(20): " << d << endl;// 0,0,10,30
+
+    //    d.Remove(100); // попытка удалить отсутствующий элемент -> исключение 6
+    //}
+    //catch (Error& e) {
+    //    e.what(); // выведет "Ошибка 6: элемент не найден"
+    //}
+
+    return 0;
+}
+
+
+
+Error2.h
+
+#pragma once
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Error { // класс для представления исключительной ситуации
+    string msg; // строковое сообщение об ошибке
+public:
+    Error(const string& s) : msg(s) {} // конструктор: инициализирует msg переданной строкой
+    void what() const { cout << msg << endl; } // метод выводит сообщение об ошибке в консоль
+};
+
+
+
+Set2.h
+
+#pragma once
+#include <iostream>
+using namespace std;
+
+const int MAX_SIZE = 30; // максимально допустимый размер множества
+
+class Set { // объявление класса Set
+    int size; // текущее количество элементов в множестве
+    int* data; // указатель на динамический массив целых чисел
+public:
+    Set(); // конструктор по умолчанию (создаёт пустое множество)
+    Set(int s); // конструктор с размером (заполняет нулями)
+    Set(int s, int* arr); // конструктор с массивом (копирует данные из arr)
+    Set(const Set& other); // конструктор копирования
+    ~Set(); // деструктор
+
+    const Set& operator=(const Set& other); // оператор присваивания
+    int operator[](int i); // оператор доступа по индексу (с проверкой границ)
+    operator int() const; // оператор приведения к int (возвращает size)
+    Set operator*(const Set& other) const; // оператор пересечения множеств
+    Set operator+(int val); // оператор добавления элемента в конец
+    Set operator--(); // префиксный оператор удаления последнего элемента
+    //void Remove(int value); // удаление по значнию
+
+    // дружественные операторы ввода/вывода
+    friend ostream& operator<<(ostream& out, const Set& s);
+    friend istream& operator>>(istream& in, Set& s);
+};
+
+
+
+Set2.cpp
+
+#include "Set2.h"
+#include "Error2.h"
+#include <iostream>
+using namespace std;
+
+// конструктор по умолчанию
+Set::Set() : size(0), data(nullptr) {} // инициализация: пустое множество, указатель null
+
+// конструктор с размером
+Set::Set(int s) {
+    if (s > MAX_SIZE) throw Error("Ошибка 1: размер превышает MAX_SIZE"); // проверка и генерация исключения
+    size = s; // сохраняем размер
+    data = new int[size]; // выделяем память под массив
+    for (int i = 0; i < size; ++i) // цикл по всем элементам
+        data[i] = 0; // инициализируем нулями
+}
+
+// конструктор с массивом
+Set::Set(int s, int* arr) {
+    if (s > MAX_SIZE) throw Error("Ошибка 1: размер превышает MAX_SIZE"); // проверка предела
+    size = s; // сохраняем размер
+    data = new int[size]; // выделяем память
+    for (int i = 0; i < size; ++i) // копируем элементы из переданного массива
+        data[i] = arr[i];
+}
+
+// конструктор копирования
+Set::Set(const Set& other) {
+    size = other.size; // копируем размер
+    data = new int[size]; // выделяем новую память
+    for (int i = 0; i < size; ++i) // копируем элементы из other
+        data[i] = other.data[i];
+}
+
+// деструктор
+Set::~Set() {
+    delete[] data; // освобождаем динамически выделенную память
+}
+
+// оператор присваивания
+const Set& Set::operator=(const Set& other) {
+    if (this == &other) return *this; // защита от самоприсваивания
+    delete[] data; // удаляем старые данные
+    size = other.size; // копируем размер
+    data = new int[size]; // выделяем новую память
+    for (int i = 0; i < size; ++i) // копируем элементы
+        data[i] = other.data[i];
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+// оператор доступа по индексу
+int Set::operator[](int i) {
+    if (i < 0) throw Error("Ошибка 2: индекс меньше 0"); // проверка отрицательного индекса
+    if (i >= size) throw Error("Ошибка 3: индекс больше или равен размеру"); // проверка выхода за границы
+    return data[i]; // возвращаем элемент
+}
+
+// оператор приведения к int (размер множества)
+Set::operator int() const {
+    return size; // просто возвращаем текущий размер
+}
+
+// оператор пересечения множеств
+Set Set::operator*(const Set& other) const {
+    // вычисляем максимально возможное количество общих элементов (не более меньшего размера)
+    int maxPossible = (size < other.size) ? size : other.size;
+    int* temp = new int[maxPossible]; // временный массив для хранения общих элементов
+    int count = 0; // счётчик найденных общих элементов
+    for (int i = 0; i < size; ++i) { // перебираем элементы первого множества
+        for (int j = 0; j < other.size; ++j) { // перебираем элементы второго
+            if (data[i] == other.data[j]) { // если элементы равны (общие)
+                temp[count++] = data[i]; // добавляем во временный массив
+                break; // выходим из внутреннего цикла, чтобы не дублировать
+            }
+        }
+    }
+    Set result(count, temp); // создаём новое множество из найденных элементов
+    delete[] temp; // освобождаем временный массив
+    return result; // возвращаем результат
+}
+
+// оператор добавления элемента в конец
+Set Set::operator+(int val) {
+    if (size + 1 > MAX_SIZE) throw Error("Ошибка 4: добавление невозможно, достигнут MAX_SIZE"); // проверка переполнения
+    Set temp(size + 1, data); // создаём временное множество с размером на 1 больше
+    temp.data[size] = val; // записываем новый элемент в конец
+    return temp; // возвращаем новое множество
+}
+
+// префиксный оператор удаления последнего элемента
+Set Set::operator--() {
+    if (size == 0) throw Error("Ошибка 5: удаление из пустого множества"); // проверка пустоты
+    if (size == 1) { // если был только один элемент
+        delete[] data; // удаляем массив
+        data = nullptr; // обнуляем указатель
+        size = 0; // размер становится 0
+        return *this; // возвращаем текущий (пустой) объект
+    }
+    // если элементов больше одного:
+    Set temp(size, data); // копируем текущее множество во временное
+    delete[] data; // удаляем старый массив
+    --size; // уменьшаем размер на 1
+    data = new int[size]; // выделяем новый массив меньшего размера
+    for (int i = 0; i < size; ++i) // копируем все элементы, кроме последнего
+        data[i] = temp.data[i];
+    return *this; // возвращаем текущий объект
+}
+
+//void Set::Remove(int value) {
+//    int index = -1;
+//    for (int i = 0; i < size; ++i) {
+//        if (data[i] == value) { index = i; break; }
+//    }
+//    if (index == -1) throw Error("Ошибка 6: элемент не найден");
+//    for (int i = index; i < size - 1; ++i) data[i] = data[i + 1];
+//    --size;
+//}
+
+// дружественный оператор вывода
+ostream& operator<<(ostream& out, const Set& s) {
+    if (s.size == 0) // если множество пусто
+        out << "Empty"; // выводим "Empty"
+    else {
+        for (int i = 0; i < s.size; ++i) // проходим по всем элементам
+            out << s.data[i] << " "; // выводим каждый через пробел
+    }
+    return out; // возвращаем поток для цепочек вывода
+}
+
+// дружественный оператор ввода
+istream& operator>>(istream& in, Set& s) {
+    for (int i = 0; i < s.size; ++i) { // для каждого элемента
+        cout << "> "; // выводим приглашение
+        in >> s.data[i]; // считываем значение
+    }
+    return in; // возвращаем поток
+}
+
+
+
+9lab3.cpp
+
+#include "Set3.h"
+#include "Error3.h"
+#include <iostream>
+#include <clocale>
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    // проверка исключения MaxSizeError (размер > MAX_SIZE)
+    try {
+        Set big(31); //попытка создать множество из 31 элемента (MAX_SIZE=30)
+    }
+    catch (Error& e) {  // перехват по ссылке на базовый класс Error
+        e.what(); // полиморфный вызов what()
+    }
+
+    // проверка исключения IndexNegative (индекс < 0)
+    try {
+        Set s(2); // создаём множество на 2 элемента (0,0)
+        s = s + 100; // добавляем 100 -> размер 3 (0,0,100)
+        cout << s[-1] << endl; // попытка доступа к индексу -1 -> исключение IndexNegative
+    }
+    catch (Error& e) {
+        e.what();
+    }
+
+    // проверка исключения AddOverflow (добавление при достижении MAX_SIZE)
+    try {
+        Set s(30); // множество максимального размера (30 элементов)
+        s = s + 999; // попытка добавить 31-й элемент
+    }
+    catch (Error& e) {
+        e.what();
+    }
+
+    // проверка исключения EmptySetError (удаление из пустого)
+    try {
+        Set empty; // пустое множество (size=0)
+        --empty; // попытка удалить -> исключение EmptySetError
+    }
+    catch (Error& e) {
+        e.what();
+    }
+
+    //// Remove (удаление по значению)
+    //try {
+    //    Set d(2); // множество на 2 элемента (0,0)
+    //    d = d + 10; // 0,0,10
+    //    d = d + 20; // 0,0,10,20
+    //    d = d + 30; // 0,0,10,20,30
+    //    cout << "d = " << d << endl;
+
+    //    d.Remove(20);  // удаляем элемент 20
+    //    cout << "После Remove(20): " << d << endl; // 0,0,10,30
+
+    //    d.Remove(100); // попытка удалить отсутствующий элемент -> исключение ElementNotFound
+    //}
+    //catch (Error& e) {
+    //    e.what(); // выведет "Ошибка 6: элемент не найден"
+    //}
+
+    return 0;
+}
+
+
+
+
+//#include "Set3.h"
+//#include "Error3.h"
+//#include <iostream>
+//#include <clocale>
+//using namespace std;
+//
+//int main() {
+//    setlocale(LC_ALL, "ru");
+//
+//    // 1. ошибка MaxSizeError
+//    try {
+//        Set big(31);
+//    }
+//    catch (MaxSizeError& e) {
+//        cout << "[Обработчик MaxSizeError] ";
+//        e.what();
+//    }
+//    catch (Error& e) {
+//        cout << "Другая ошибка: ";
+//        e.what();
+//    }
+//
+//    // 2. ошибка IndexNegative
+//    try {
+//        Set s(2);
+//        s = s + 100;
+//        cout << s[-1] << endl;
+//    }
+//    catch (IndexNegative& e) {
+//        cout << "[Обработчик IndexNegative] ";
+//        e.what();
+//    }
+//    catch (Error& e) {
+//        cout << "Другая ошибка: ";
+//        e.what();
+//    }
+//
+//    // 3. ошибка IndexTooLarge
+//    try {
+//        Set s(2);
+//        s = s + 100;
+//        cout << s[5] << endl;
+//    }
+//    catch (IndexTooLarge& e) {
+//        cout << "[Обработчик IndexTooLarge] ";
+//        e.what();
+//    }
+//    catch (Error& e) {
+//        cout << "Другая ошибка: ";
+//        e.what();
+//    }
+//
+//    // 4. ошибка AddOverflow
+//    try {
+//        Set s(30);
+//        s = s + 999;
+//    }
+//    catch (AddOverflow& e) {
+//        cout << "[Обработчик AddOverflow] ";
+//        e.what();
+//    }
+//    catch (Error& e) {
+//        cout << "Другая ошибка: ";
+//        e.what();
+//    }
+//
+//    // 5. ошибка EmptySetError
+//    try {
+//        Set empty;
+//        --empty;
+//    }
+//    catch (EmptySetError& e) {
+//        cout << "[Обработчик EmptySetError] ";
+//        e.what();
+//    }
+//    catch (Error& e) {
+//        cout << "Другая ошибка: ";
+//        e.what();
+//    }
+//
+//    // 6. удаление и ошибка ElementNotFound
+//    try {
+//        Set d(2);
+//        d = d + 10;
+//        d = d + 20;
+//        d = d + 30;
+//        cout << "d = " << d << endl;
+//
+//        d.Remove(20);
+//        cout << "После Remove(20): " << d << endl;
+//
+//        d.Remove(100); // генерация ElementNotFound
+//    }
+//    catch (ElementNotFound& e) {
+//        cout << "[Обработчик ElementNotFound] ";
+//        e.what();
+//    }
+//    catch (Error& e) {
+//        cout << "Другая ошибка: ";
+//        e.what();
+//    }
+//
+//    return 0;
+//}
+
+
+
+Error3.h
+
+#pragma once
+#include <iostream>
+using namespace std;
+
+// базовый абстрактный класс для всех исключений
+class Error {
+public:
+    virtual void what() const = 0; // чисто виртуальный метод вывода сообщения
+    virtual ~Error() {} // виртуальный деструктор
+};
+
+// ошибки размера
+class SizeError : public Error {}; // промежуточный класс для ошибок размера
+
+// превышение максимального размера (исключение 1)
+class MaxSizeError : public SizeError {
+public:
+    virtual void what() const { cout << "Ошибка: размер превышает MAX_SIZE (30)" << endl; }
+};
+
+// удаление из пустого множества (исключение 5)
+class EmptySetError : public SizeError {
+public:
+    virtual void what() const { cout << "Ошибка: попытка удалить из пустого множества" << endl; }
+};
+
+// ошибки индекса
+class IndexError : public Error {}; // промежуточный класс для ошибок индекса
+
+// индекс меньше 0 (исключение 2)
+class IndexNegative : public IndexError {
+public:
+    virtual void what() const { cout << "Ошибка: индекс меньше 0" << endl; }
+};
+
+// индекс больше или равен текущему размеру (исключение 3)
+class IndexTooLarge : public IndexError {
+public:
+    virtual void what() const { cout << "Ошибка: индекс >= текущего размера множества" << endl; }
+};
+
+// ошибка добавления при достижении MAX_SIZE (исключение 4)
+class AddOverflow : public SizeError {
+public:
+    virtual void what() const { cout << "Ошибка: добавление элемента невозможно – достигнут MAX_SIZE" << endl; }
+};
+
+//// элемент не найден (ошибка 6)
+//class ElementNotFound : public Error {
+//public:
+//    virtual void what() const { cout << "Ошибка 6: элемент не найден" << endl; }
+//};
+
+
+
+Set3.h
+
+#pragma once
+#include <iostream>
+using namespace std;
+
+const int MAX_SIZE = 30; // максимальный размер множества
+
+class Set {
+    int size; // текущее количество элементов
+    int* data; // указатель на динамический массив
+public:
+    Set();// конструктор по умолчанию (пустое)
+    Set(int s); // конструктор с размером (заполняет нулями)
+    Set(int s, int* arr); // конструктор с массивом
+    Set(const Set& other); // конструктор копирования
+    ~Set(); // деструктор
+
+    const Set& operator=(const Set& other); // оператор присваивания
+    int operator[](int i); // доступ по индексу
+    operator int() const; // приведение к int (размер)
+    Set operator*(const Set& other) const; // пересечение
+    Set operator+(int val); // добавление элемента
+    Set operator--(); // удаление последнего (префиксный)
+    //void Remove(int value);
+
+    friend ostream& operator<<(ostream& out, const Set& s); // вывод
+    friend istream& operator>>(istream& in, Set& s); // ввод
+};
+
+
+
+Set3.cpp
+
+#include "Set3.h"
+#include "Error3.h"
+#include <iostream>
+using namespace std;
+
+// конструктор по умолчанию
+Set::Set() : size(0), data(nullptr) {} // инициализация: пусто, указатель null
+
+// конструктор с размером
+Set::Set(int s) {
+    if (s > MAX_SIZE) throw MaxSizeError(); // если размер > MAX_SIZE – бросаем MaxSizeError
+    size = s; // сохраняем размер
+    data = new int[size]; // выделяем память под массив
+    for (int i = 0; i < size; ++i) // цикл по всем элементам
+        data[i] = 0; // заполняем нулями
+}
+
+// конструктор с массивом
+Set::Set(int s, int* arr) {
+    if (s > MAX_SIZE) throw MaxSizeError(); // проверка на превышение MAX_SIZE
+    size = s; // сохраняем размер
+    data = new int[size]; // выделяем память
+    for (int i = 0; i < size; ++i) // копируем элементы из переданного массива
+        data[i] = arr[i];
+}
+
+// конструктор копирования
+Set::Set(const Set& other) {
+    size = other.size; // копируем размер
+    data = new int[size]; // выделяем новую память
+    for (int i = 0; i < size; ++i) // копируем элементы из other
+        data[i] = other.data[i];
+}
+
+// деструктор
+Set::~Set() {
+    delete[] data; // освобождаем динамически выделенную память
+}
+
+// оператор присваивания
+const Set& Set::operator=(const Set& other) {
+    if (this == &other) return *this; // защита от самоприсваивания
+    delete[] data; // удаляем старые данные
+    size = other.size; // копируем размер
+    data = new int[size]; // выделяем новую память
+    for (int i = 0; i < size; ++i) // копируем элементы
+        data[i] = other.data[i];
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+// оператор доступа по индексу
+int Set::operator[](int i) {
+    if (i < 0) throw IndexNegative(); // если индекс отрицательный – бросаем IndexNegative
+    if (i >= size) throw IndexTooLarge(); // если индекс выходит за границы – бросаем IndexTooLarge
+    return data[i];  // возвращаем элемент
+}
+
+// оператор приведения к int (размер)
+Set::operator int() const {
+    return size; // просто возвращаем текущий размер
+}
+
+// пересечение множеств
+Set Set::operator*(const Set& other) const {
+    int maxPossible = (size < other.size) ? size : other.size; // максимально возможное количество общих элементов
+    int* temp = new int[maxPossible]; // временный массив для хранения общих элементов
+    int count = 0; // счётчик найденных общих элементов
+    for (int i = 0; i < size; ++i) { // перебираем элементы первого множества
+        for (int j = 0; j < other.size; ++j) { // перебираем элементы второго
+            if (data[i] == other.data[j]) { // если элементы равны (общие)
+                temp[count++] = data[i]; // добавляем во временный массив
+                break; // выходим из внутреннего цикла (чтобы не дублировать)
+            }
+        }
+    }
+    Set result(count, temp); // создаём новое множество из найденных элементов
+    delete[] temp; // освобождаем временный массив
+    return result; // возвращаем результат
+}
+
+// добавление элемента в конец
+Set Set::operator+(int val) {
+    if (size + 1 > MAX_SIZE) throw AddOverflow();
+    Set temp(size + 1, data); // создаём временное множество с размером на 1 больше
+    temp.data[size] = val; // записываем новый элемент в конец
+    return temp; // возвращаем новое множество
+}
+
+// префиксный оператор удаления последнего элемента
+Set Set::operator--() {
+    if (size == 0) throw EmptySetError(); // если множество пусто – бросаем EmptySetError
+    if (size == 1) { // если был только один элемент
+        delete[] data; // удаляем массив
+        data = nullptr; // обнуляем указатель
+        size = 0; // размер становится 0
+        return *this; // возвращаем текущий (пустой) объект
+    }
+    // если элементов больше одного:
+    Set temp(size, data); // копируем текущее множество во временное
+    delete[] data; // удаляем старый массив
+    --size; // уменьшаем размер на 1
+    data = new int[size]; // выделяем новый массив меньшего размера
+    for (int i = 0; i < size; ++i) // копируем все элементы, кроме последнего
+        data[i] = temp.data[i];
+    return *this; // возвращаем текущий объект
+}
+
+//// реализация удаления по значению
+//void Set::Remove(int value) {
+//    int index = -1;
+//    for (int i = 0; i < size; ++i) {
+//        if (data[i] == value) {
+//            index = i;
+//            break;
+//        }
+//    }
+//    if (index == -1) throw ElementNotFound();
+//    for (int i = index; i < size - 1; ++i) {
+//        data[i] = data[i + 1];
+//    }
+//    --size;
+//}
+
+// дружественный оператор вывода
+ostream& operator<<(ostream& out, const Set& s) {
+    if (s.size == 0) // если множество пусто
+        out << "Empty"; // выводим "Empty"
+    else {
+        for (int i = 0; i < s.size; ++i) // проходим по всем элементам
+            out << s.data[i] << " "; // выводим каждый через пробел
+    }
+    return out; // возвращаем поток для цепочек вывода
+}
+
+// дружественный оператор ввода
+istream& operator>>(istream& in, Set& s) {
+    for (int i = 0; i < s.size; ++i) { // для каждого элемента
+        cout << "> "; // выводим приглашение
+        in >> s.data[i]; // считываем значение
+    }
+    return in; // возвращаем поток
+}
+
+
