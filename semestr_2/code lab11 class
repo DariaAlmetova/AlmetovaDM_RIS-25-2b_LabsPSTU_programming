@@ -1,0 +1,760 @@
+11_1lab.cpp
+
+#include <iostream>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>     // подключение для алгоритма find() (поиск элемента в контейнере)
+using namespace std;
+
+typedef vector<float> Vec; // определение псевдонима Vec для типа vector<float>
+
+// функция формирования вектора из n случайных вещественных чисел (типа float)
+Vec make_vector(int n) {
+    Vec v; // создаём пустой вектор v
+    for (int i = 0; i < n; ++i)
+        v.push_back((float)(rand() % 100) / 10.0f - 5.0f);
+    // rand()%100 -> случайное целое от 0 до 99
+    // /10.0f -> деление на 10, получаем число от 0.0 до 9.9
+    // -5.0f -> сдвиг в диапазон [-5.0, 4.9]
+    // push_back() добавляет элемент в конец вектора
+    return v; // возвращаем заполненный вектор
+}
+
+// функция печати вектора
+void print_vector(const Vec& v) {
+    for (float x : v) // перебираем все элементы вектора v
+        cout << x << " ";
+    cout << endl;
+}
+
+// функция поиска минимального элемента в векторе
+float find_min(const Vec& v) {
+    if (v.empty()) return 0; // если вектор пуст – возвращаем 0 (нет элементов)
+    float m = v[0]; // инициализируем минимум первым элементом
+    for (float x : v)
+        if (x < m) m = x;
+    return m;
+}
+
+// функция добавления минимального элемента в конец вектора
+void add_min_to_end(Vec& v) {
+    if (v.empty()) return; // если вектор пуст – ничего не делаем
+    v.push_back(find_min(v)); // находим минимум и добавляем его в конец вектора
+}
+
+// функция удаления первого вхождения элемента с заданным ключом (значением)
+bool delete_by_key(Vec& v, float key) {
+    auto it = find_if(v.begin(), v.end(), [key](float x) {
+        // find() ищет элемент key в диапазоне [begin, end) и возвращает итератор на него (или end, если не найден)
+        // auto – автоматическое определение типа (в данном случае vector<float>::iterator)
+        return fabs(x - key) < 1e-6; // допуск 0.000001
+        });
+    if (it != v.end()) { // если элемент найден (итератор не указывает на конец)
+        v.erase(it); // удаляем элемент по этому итератору
+        return true; // возвращаем true – удаление успешно
+    }
+    return false;
+}
+
+// функция добавления к каждому элементу вектора суммы минимального и максимального элементов
+void add_sum_min_max(Vec& v) {
+    if (v.empty()) return;
+    float minv = v[0], maxv = v[0]; // инициализируем минимум и максимум первым элементом
+    for (float x : v) {
+        if (x < minv) minv = x;
+        if (x > maxv) maxv = x;
+    }
+    float sum = minv + maxv;
+    for (float& x : v) // перебираем элементы по ссылке (чтобы изменять)
+        x += sum; // Добавляем сумму к каждому элементу
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    srand((unsigned)time(0));
+
+    int n;
+    cout << "Размер вектора: "; cin >> n;
+
+    Vec v = make_vector(n); // создаём вектор v, вызывая функцию формирования
+    cout << "Исходный: "; print_vector(v);
+
+    add_min_to_end(v);
+    cout << "После добавления min в конец: "; print_vector(v);
+
+    float key;
+    cout << "Ключ для удаления: "; cin >> key;
+    if (delete_by_key(v, key)) {
+        cout << "После удаления: ";
+        print_vector(v);
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    add_sum_min_max(v);
+    cout << "После + (min+max): "; print_vector(v);
+    return 0;
+}
+
+
+
+11_2lab.cpp
+
+#include <iostream>
+#include <vector>
+#include "Money.h"
+using namespace std;
+
+typedef vector<Money> Vec; // определение псевдонима Vec для типа vector<Money>
+
+// функция формирования вектора из n элементов типа Money (пользовательский ввод)
+Vec make_vector(int n) {
+    Vec v; // создаём пустой вектор v (тип vector<Money>)
+    for (int i = 0; i < n; ++i) {
+        Money m; // создаём временный объект Money (вызывается конструктор по умолчанию)
+        cout << "Элемент " << i + 1 << ":\n";
+        cin >> m; // вводим денежную сумму (используется перегруженный оператор >>)
+        v.push_back(m);
+    }
+    return v; // возвращаем заполненный вектор
+}
+
+// функция печати вектора
+void print_vector(const Vec& v) {
+    for (const Money& m : v)
+        cout << m << " ";
+    cout << endl;
+}
+
+// функция поиска минимального элемента в векторе (возвращает копию найденного минимума)
+Money find_min(const Vec& v) {
+    if (v.empty()) return Money(); // если вектор пуст – возвращаем нулевую сумму (0,00)
+    Money m = v[0];
+    for (size_t i = 1; i < v.size(); ++i)
+        if (v[i] < m) m = v[i];
+    return m;
+}
+
+// функция добавления минимального элемента в конец вектора
+void add_min_to_end(Vec& v) {
+    if (v.empty()) return;
+    v.push_back(find_min(v));
+}
+
+// функция удаления первого вхождения элемента с заданным ключом (значением) из вектора
+bool delete_by_key(Vec& v, const Money& key) {
+    for (auto it = v.begin(); it != v.end(); ++it)
+        if (*it == key) {
+            v.erase(it); // удаляем элемент по текущему итератору (erase возвращает итератор на следующий элемент, но нам он не нужен)
+            return true; // возвращаем true – удаление успешно
+        }
+    return false;
+}
+
+// aункция добавления к каждому элементу вектора суммы минимального и максимального элементов
+void add_sum_min_max(Vec& v) {
+    if (v.empty()) return;
+    Money minv = v[0], maxv = v[0];
+    for (const Money& x : v) {
+        if (x < minv) minv = x;
+        if (x > maxv) maxv = x;
+    }
+    Money sum = minv + maxv;
+    for (Money& x : v)
+        x = x + sum;
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Размер вектора: "; cin >> n;
+
+    Vec v = make_vector(n);
+    cout << "Исходный: "; print_vector(v);
+
+    add_min_to_end(v);
+    cout << "После добавления min в конец: "; print_vector(v);
+
+    Money key;
+    cout << "Введите ключ для удаления:\n";
+    cin >> key;
+
+    if (delete_by_key(v, key)) {
+        cout << "После удаления: ";
+        print_vector(v);
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    add_sum_min_max(v);
+    cout << "После + (min+max): "; print_vector(v);
+
+    return 0;
+}
+
+
+
+11_3lab.cpp
+
+#include <iostream>
+#include "Money.h"
+#include "Vector.h" // подключение шаблонного класса Vector
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Размер вектора: "; cin >> n;
+
+    Vector<Money> vec(n); // создаём объект класса Vector с типом элементов Money (вызов конструктора)
+    cout << "Исходный: "; vec.Print();
+
+    vec.AddMinToEnd();
+    cout << "После добавления min в конец: "; vec.Print();
+
+    Money key;
+    cout << "Введите ключ для удаления:\n";
+    cin >> key;
+
+    if (vec.DeleteByKey(key)) {
+        cout << "После удаления: "; vec.Print();
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    vec.AddSumMinMax();
+    cout << "После + (min+max): "; vec.Print();
+
+    return 0;
+}
+
+
+
+11_4lab.cpp
+
+#include <iostream>
+#include <queue>
+#include <vector>
+#include "Money.h" 
+using namespace std;
+
+typedef queue<Money> Queue; // определение псевдонима Queue для очереди из объектов Money
+
+// функция формирования очереди из n элементов (пользовательский ввод)
+Queue make_queue(int n) {
+    Queue q; // создаём пустую очередь q
+    for (int i = 0; i < n; ++i) {
+        Money m;
+        cout << "Элемент " << i + 1 << ":\n";
+        cin >> m;
+        q.push(m); // добавляем элемент в конец очереди
+    }
+    return q; // возвращаем сформированную очередь
+}
+
+// функция печати очереди (принимает копию)
+void print_queue(Queue q) {
+    while (!q.empty()) { // пока очередь не пуста
+        cout << q.front() << " "; // выводим первый элемент (оператор << класса Money)
+        q.pop(); // удаляем первый элемент (извлекаем из очереди)
+    }
+    cout << endl;
+}
+
+// функция поиска минимального элемента в очереди (без изменения исходной очереди)
+Money find_min(const Queue& q) {
+    if (q.empty()) return Money(); // если очередь пуста – возвращаем нулевую сумму
+    Queue temp = q; // создаём копию очереди
+    Money m = temp.front();
+    temp.pop();
+    while (!temp.empty()) {
+        if (temp.front() < m)
+            m = temp.front();
+        temp.pop(); // удаляем текущий элемент (продвигаемся по очереди)
+    }
+    return m;
+}
+
+// функция добавления минимального элемента в конец очереди
+void add_min_to_end(Queue& q) {
+    if (q.empty()) return;
+    q.push(find_min(q));
+}
+
+// функция удаления первого вхождения элемента с заданным ключом из очереди
+bool delete_by_key(Queue& q, const Money& key) {
+    vector<Money> temp; // вспомогательный вектор для хранения оставшихся элементов
+    bool removed = false; // флаг: удалён ли уже элемент
+    while (!q.empty()) {
+        Money cur = q.front();
+        q.pop();
+        if (!removed && cur == key) { // если элемент равен ключу и ещё не удаляли
+            removed = true; // устанавливаем флаг
+            continue; // пропускаем добавление этого элемента (удаляем)
+        }
+        temp.push_back(cur); // иначе сохраняем элемент во вспомогательный вектор
+    }
+    for (const Money& m : temp) // перебираем все сохранённые элементы
+        q.push(m); // возвращаем их обратно в очередь (сохраняя порядок)
+    return removed; // возвращаем true, если удаление произошло
+}
+
+// функция добавления к каждому элементу очереди суммы минимального и максимального элементов
+void add_sum_min_max(Queue& q) {
+    if (q.empty()) return;
+    Queue temp = q;
+    Money minv = temp.front(), maxv = temp.front();
+    while (!temp.empty()) {
+        Money cur = temp.front();
+        if (cur < minv) minv = cur;
+        if (cur > maxv) maxv = cur;
+        temp.pop(); // удаляем обработанный элемент из копии
+    }
+    Money sum = minv + maxv;
+    vector<Money> buf; // вектор для хранения изменённых элементов
+    while (!q.empty()) { // извлекаем все элементы из исходной очереди
+        Money cur = q.front(); q.pop();
+        buf.push_back(cur + sum); // добавляем к каждому сумму и сохраняем в вектор
+    }
+    for (const Money& m : buf) // перебираем изменённые элементы
+        q.push(m); // возвращаем их обратно в очередь (сохраняя порядок)
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Размер очереди: "; cin >> n;
+
+    Queue q = make_queue(n);
+    cout << "Исходная очередь: "; print_queue(q);
+
+    add_min_to_end(q);
+    cout << "После добавления min в конец: "; print_queue(q);
+
+    Money key;
+    cout << "Введите ключ для удаления:\n";
+    cin >> key;
+
+    if (delete_by_key(q, key)) {
+        cout << "После удаления: "; print_queue(q);
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    add_sum_min_max(q);
+    cout << "После + (min+max): "; print_queue(q);
+
+    return 0;
+}
+
+
+
+
+11_5lab.cpp
+
+#include <iostream>
+#include "Money.h"
+#include "Queue.h" // подключение шаблонного класса Queue
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Размер очереди: "; cin >> n;
+
+    Queue<Money> cont(n); // создаём объект шаблонного класса Queue для типа Money (ввод n элементов)
+    cout << "Исходная очередь: "; cont.Print();
+
+    cont.AddMinToEnd();
+    cout << "После добавления min в конец: "; cont.Print();
+
+    Money key;
+    cout << "Введите ключ для удаления:\n";
+    cin >> key;
+
+    if (cont.DeleteByKey(key)) {
+        cout << "После удаления: "; cont.Print();
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    cont.AddSumMinMax();
+    cout << "После + (min+max): "; cont.Print();
+
+    return 0;
+}
+
+
+Money.h
+
+#pragma once
+#ifndef MONEY_H
+#define MONEY_H
+#include <iostream>
+#include <iomanip>
+using namespace std;
+
+class Money {
+private:
+    long rubles;
+    int kopeks;
+
+    void normalize() {
+        if (kopeks >= 100) {
+            rubles += kopeks / 100; // добавляем к рублям целое количество сотен копеек
+            kopeks %= 100; // оставляем остаток копеек (от 0 до 99)
+        }
+    }
+
+public:
+    Money() : rubles(0), kopeks(0) {} // конструктор по умолчанию: создаёт сумму 0,00 (инициализирует поля нулями)
+
+    Money(long r, int k) : rubles(r), kopeks(k) { // конструктор с параметрами: рубли и копейки
+        if (rubles < 0) rubles = 0; // если переданы отрицательные рубли – принудительно обнуляем
+        if (kopeks < 0) kopeks = 0; // если отрицательные копейки – обнуляем
+        normalize(); // вызываем нормализацию (на случай, если копеек >= 100)
+    }
+
+    Money(const Money& other) : rubles(other.rubles), kopeks(other.kopeks) {} // конструктор копирования
+
+    Money(long total_kopeks) { // конструктор из общего количества копеек
+        if (total_kopeks < 0) total_kopeks = 0; // отрицательные суммы запрещены – заменяем на 0
+        rubles = total_kopeks / 100; // целая часть (рубли) = целое от деления на 100
+        kopeks = total_kopeks % 100; // остаток (копейки) = остаток от деления на 100
+        normalize();
+    }
+
+    Money& operator=(const Money& other) { // перегрузка оператора =
+        if (this != &other) { // проверка на самоприсваивание (если объект не равен сам себе)
+            rubles = other.rubles; // копируем рубли
+            kopeks = other.kopeks; // копируем копейки
+        }
+        return *this; // возвращаем ссылку на текущий объект
+    }
+
+    Money operator+(const Money& other) const { // сложение двух сумм
+        return Money(toKopeks() + other.toKopeks()); // переводим обе суммы в копейки, складываем, создаём новый Money
+    }
+
+    Money operator/(int divisor) const { // деление суммы на целое число (например, для среднего арифметического)
+        if (divisor == 0) { // защита от деления на ноль
+            cerr << "Ошибка: деление на 0\n"; // выводим сообщение об ошибке в поток ошибок
+            return Money(0, 0); // возвращаем нулевую сумму
+        }
+        return Money(toKopeks() / divisor); // делим копейки на целое число, создаём новый Money
+    }
+
+    Money operator/(const Money& other) const { // деление одной суммы на другую (возвращает отношение, упакованное в Money)
+        if (other.toKopeks() == 0) { // если делитель равен нулю
+            cerr << "Ошибка: деление на 0\n";
+            return Money(0, 0);
+        }
+        double ratio = (double)toKopeks() / other.toKopeks(); // вычисляем вещественное отношение
+        return Money((long)(ratio * 100)); // умножаем на 100 и преобразуем в копейки, создаём Money
+    }
+
+    Money operator*(double factor) const { // умножение суммы на дробное число
+        if (factor < 0) factor = -factor; // запрещаем отрицательный множитель (делаем положительным)
+        return Money((long)(toKopeks() * factor)); // умножаем копейки на factor, округляем до целых, создаём Money
+    }
+
+    bool operator<(const Money& other) const { // оператор "меньше"
+        return toKopeks() < other.toKopeks(); // сравниваем общие количества копеек
+    }
+    bool operator>(const Money& other) const { // оператор "больше"
+        return toKopeks() > other.toKopeks();
+    }
+    bool operator==(const Money& other) const { // оператор "равно"
+        return toKopeks() == other.toKopeks();
+    }
+    bool operator!=(const Money& other) const { // оператор "не равно"
+        return !(*this == other); // реализуем через оператор ==
+    }
+
+
+    Money& operator++() { // префиксный ++ (++a)
+        *this = Money(toKopeks() + 1); // увеличиваем общее количество копеек на 1, присваиваем себе
+        return *this; // возвращаем ссылку на себя (уже изменённый объект)
+    }
+    Money operator++(int) { // постфиксный ++ (a++)
+        Money temp = *this; // сохраняем старое значение
+        ++(*this); // вызываем префиксный инкремент для увеличения текущего объекта
+        return temp; // возвращаем старое значение (копию)
+    }
+
+    long toKopeks() const { // возвращает сумму в копейках (рубли*100 + копейки)
+        return rubles * 100 + kopeks;
+    }
+
+    friend istream& operator>>(istream& in, Money& m) { // перегрузка оператора ввода >>
+        long r; // временная переменная для рублей
+        int k; // временная переменная для копеек
+        bool ok = false; // флаг корректного ввода
+        while (!ok) { // цикл до тех пор, пока не введут правильно
+            cout << "Рубли (>=0): "; in >> r;
+            cout << "Копейки (0-99): "; in >> k;
+            if (r < 0 || k < 0) {
+                cout << "Ошибка: рубли и копейки не могут быть отрицательными. Повторите ввод.\n";
+            }
+            else if (k >= 100) {
+                cout << "Ошибка: копейки должны быть в диапазоне 0..99. Повторите ввод.\n";
+            }
+            else {
+                ok = true; // ввод корректен – выходим из цикла
+            }
+        }
+        m.rubles = r; // присваиваем полям объекта введённые значения
+        m.kopeks = k;
+        m.normalize();
+        return in; // возвращаем поток для цепочечных операций (cin >> a >> b)
+    }
+
+    friend ostream& operator<<(ostream& out, const Money& m) { // перегрузка оператора вывода <<
+        out << m.rubles << ","; // выводим рубли и запятую-разделитель
+        if (m.kopeks < 10) out << "0"; // всли копеек меньше 10, выводим ведущий ноль (для формата 5,05)
+        out << m.kopeks; // выводим копейки
+        return out; // возвращаем поток
+    }
+};
+
+#endif
+
+
+
+Vector.h
+
+#pragma once
+#include <iostream>
+
+template <class T>
+class Vector {
+private:
+    T* data; // указатель на динамический массив
+    int size; // размер вектора (количество элементов)
+public:
+    // конструктор: выделяет память под n элементов и заполняет их через ввод
+    Vector(int n) : size(n) {
+        data = new T[size];
+        for (int i = 0; i < size; ++i) {
+            std::cout << "Элемент " << i + 1 << ":\n";
+            std::cin >> data[i];
+        }
+    }
+
+    // деструктор
+    ~Vector() { delete[] data; }
+
+    // конструктор копирования
+    Vector(const Vector& other) : size(other.size) {
+        data = new T[size];
+        for (int i = 0; i < size; ++i)
+            data[i] = other.data[i];
+    }
+
+    // оператор присваивания
+    Vector& operator=(const Vector& other) {
+        if (this != &other) {
+            delete[] data;
+            size = other.size;
+            data = new T[size];
+            for (int i = 0; i < size; ++i)
+                data[i] = other.data[i];
+        }
+        return *this;
+    }
+
+    // метод печати
+    void Print() const {
+        for (int i = 0; i < size; ++i)
+            std::cout << data[i] << " ";
+        std::cout << std::endl;
+    }
+
+    // поиск минимума
+    T FindMin() const {
+        if (size == 0) return T();
+        T m = data[0];
+        for (int i = 1; i < size; ++i)
+            if (data[i] < m) m = data[i];
+        return m;
+    }
+
+    // добавление минимума в конец (требует перевыделения памяти)
+    void AddMinToEnd() {
+        if (size == 0) return;
+        T minVal = FindMin();
+        T* newData = new T[size + 1];
+        for (int i = 0; i < size; ++i)
+            newData[i] = data[i];
+        newData[size] = minVal;
+        delete[] data;
+        data = newData;
+        ++size;
+    }
+
+    // удаление первого вхождения по ключу
+    bool DeleteByKey(const T& key) {
+        int index = -1;
+        for (int i = 0; i < size; ++i) {
+            if (data[i] == key) {
+                index = i;
+                break;
+            }
+        }
+        if (index == -1) return false;
+        T* newData = new T[size - 1];
+        for (int i = 0, j = 0; i < size; ++i) {
+            if (i != index)
+                newData[j++] = data[i];
+        }
+        delete[] data;
+        data = newData;
+        --size;
+        return true;
+    }
+
+    // добавление суммы min+max к каждому элементу
+    void AddSumMinMax() {
+        if (size == 0) return;
+        T minv = data[0], maxv = data[0];
+        for (int i = 1; i < size; ++i) {
+            if (data[i] < minv) minv = data[i];
+            if (data[i] > maxv) maxv = data[i];
+        }
+        T sum = minv + maxv;
+        for (int i = 0; i < size; ++i)
+            data[i] = data[i] + sum;
+    }
+};
+
+
+
+Queue.h
+
+#pragma once
+#include <iostream>
+
+template <class T>
+class Queue {
+private:
+    struct Node {
+        T data;
+        Node* next;
+        Node(const T& val) : data(val), next(nullptr) {}
+    };
+    Node* head; // начало очереди (откуда удаляем)
+    Node* tail; // конец очереди (куда добавляем)
+    int count;  // количество элементов
+
+public:
+    Queue(int n) : head(nullptr), tail(nullptr), count(0) {
+        for (int i = 0; i < n; ++i) {
+            T a;
+            std::cout << "Элемент " << i + 1 << ":\n";
+            std::cin >> a;
+            push(a);
+        }
+    }
+
+    ~Queue() {
+        while (!empty())
+            pop();
+    }
+
+    void push(const T& val) {
+        Node* newNode = new Node(val);
+        if (tail) tail->next = newNode;
+        else head = newNode;
+        tail = newNode;
+        ++count;
+    }
+
+    void pop() {
+        if (!head) return;
+        Node* temp = head;
+        head = head->next;
+        if (!head) tail = nullptr;
+        delete temp;
+        --count;
+    }
+
+    T front() const { return head->data; }
+    bool empty() const { return head == nullptr; }
+    int size() const { return count; }
+
+    void Print() const {
+        Node* cur = head;
+        while (cur) {
+            std::cout << cur->data << " ";
+            cur = cur->next;
+        }
+        std::cout << std::endl;
+    }
+
+    T FindMin() const {
+        if (empty()) return T();
+        Node* cur = head;
+        T m = cur->data;
+        while (cur) {
+            if (cur->data < m) m = cur->data;
+            cur = cur->next;
+        }
+        return m;
+    }
+
+    T FindMax() const {
+        if (empty()) return T();
+        Node* cur = head;
+        T m = cur->data;
+        while (cur) {
+            if (cur->data > m) m = cur->data;
+            cur = cur->next;
+        }
+        return m;
+    }
+
+    void AddMinToEnd() {
+        if (empty()) return;
+        push(FindMin());
+    }
+
+    bool DeleteByKey(const T& key) {
+        if (empty()) return false;
+        // удаляем голову
+        if (head->data == key) {
+            pop();
+            return true;
+        }
+        Node* cur = head;
+        while (cur->next) {
+            if (cur->next->data == key) {
+                Node* toDelete = cur->next;
+                cur->next = toDelete->next;
+                if (toDelete == tail) tail = cur;
+                delete toDelete;
+                --count;
+                return true;
+            }
+            cur = cur->next;
+        }
+        return false;
+    }
+
+    void AddSumMinMax() {
+        if (empty()) return;
+        T minv = FindMin();
+        T maxv = FindMax();
+        T sum = minv + maxv;
+        Node* cur = head;
+        while (cur) {
+            cur->data = cur->data + sum;
+            cur = cur->next;
+        }
+    }
+};
