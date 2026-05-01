@@ -1,0 +1,513 @@
+13lab.cpp
+
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <map>
+#include <algorithm>
+#include <functional>
+#include "Money.h"
+using namespace std;
+
+// шаблон функции для вывода элементов любого контейнера с итераторами (кроме map)
+template<typename Container>
+void printContainer(const Container& c, const string& name) {
+    cout << name << ": "; // печатаем название контейнера
+    for (const auto& elem : c)
+        cout << elem << " ";
+    cout << endl;
+}
+
+// функция для вывода map<int, Money> (печатает ключ и значение)
+void printMap(const map<int, Money>& m, const string& name) {
+    cout << name << ": "; // печатаем название словаря
+    for (const auto& p : m)
+        cout << "[" << p.first << "]=" << p.second << " ";
+    cout << endl;
+}
+
+
+// ЗАДАЧА 1: ВЕКТОР (vector<Money>)
+void task1_vector() {
+    cout << "\n========== ЗАДАЧА 1: ВЕКТОР ==========\n";
+    vector<Money> v; // создаём пустой вектор объектов Money
+    int n; // переменная для количества элементов
+    cout << "Введите количество элементов: ";
+    cin >> n;
+
+    for (int i = 0; i < n; ++i) {
+        Money m;
+        cin >> m;
+        v.push_back(m);
+    }
+    printContainer(v, "Исходный вектор");
+
+    // 1. Найти минимальный элемент и добавить его в конец контейнера
+    auto minIt = min_element(v.begin(), v.end()); // итератор на минимальный элемент
+    Money minVal = *minIt;
+    cout << "Минимальный элемент: " << minVal << endl;
+    v.push_back(minVal);
+    printContainer(v, "После добавления min в конец");
+
+    // 2. Найти элемент с заданным ключом (значением) и удалить его
+    Money key; // переменная для искомого значения
+    cout << "Введите Money для удаления. ";
+    cin >> key;
+    auto findIt = find(v.begin(), v.end(), key);
+    if (findIt != v.end()) {
+        v.erase(findIt);
+        cout << "Элемент удалён.\n";
+    }
+    else cout << "Не найден.\n";
+    printContainer(v, "После удаления");
+
+    // 3. К каждому элементу добавить сумму минимального и максимального элементов контейнера
+    auto maxIt = max_element(v.begin(), v.end()); // итератор на максимальный элемент
+    Money maxVal = *maxIt; // значение максимального элемента
+    Money sumMinMax = minVal + maxVal;
+    cout << "Сумма min+max = " << sumMinMax << endl;
+    // transform: применяет лямбда-функцию к каждому элементу и сохраняет результат на том же месте
+    transform(v.begin(), v.end(), v.begin(),
+        [sumMinMax](Money m) { return m + sumMinMax; }); // лямбда прибавляет сумму к элементу
+    printContainer(v, "После прибавления (min+max)");
+
+    // 3. replace_if: заменить все элементы > 200 руб (20000 копеек) на 0,00
+    Money threshold(200, 0); // порог 200 рублей
+    cout << "\n--- replace_if (замена > " << threshold << " на 0,00) ---\n";
+    replace_if(v.begin(), v.end(), // диапазон
+        [threshold](Money m) { return m > threshold; },
+        Money(0, 0)); // новое значение (0 рублей 0 копеек)
+    printContainer(v, "После replace_if");
+
+    // 4. remove_if: удалить все элементы, равные 0,00 (remove только сдвигает, erase удаляет физически)
+    cout << "\n--- remove_if (удаление нулевых) ---\n";
+    auto newEnd = remove_if(v.begin(), v.end(), // алгоритм сдвигает "удаляемые" элементы в конец
+        [](Money m) { return m == Money(0, 0); });
+    v.erase(newEnd, v.end()); // физически удаляем диапазон от newEnd до конца
+    printContainer(v, "После remove_if + erase");
+
+    // 5. sort: сортировка по возрастанию и по убыванию
+    cout << "\n--- sort по возрастанию ---\n";
+    sort(v.begin(), v.end()); // по умолчанию использует operator< (возрастание)
+    printContainer(v, "Возрастание");
+    cout << "--- sort по убыванию ---\n";
+    sort(v.begin(), v.end(), greater<Money>());
+    printContainer(v, "Убывание");
+
+    // 6. find / find_if / count / count_if
+    cout << "\n--- Поиск и подсчёт ---\n";
+    Money searchVal(100, 0); // значение для поиска (100 рублей)
+    auto f = find(v.begin(), v.end(), searchVal); // линейный поиск конкретного значения
+    if (f != v.end()) cout << "find: " << *f << " найден\n";
+    else cout << "find: " << searchVal << " не найден\n";
+
+    // find_if: поиск первого элемента, большего 50 рублей
+    auto f_if = find_if(v.begin(), v.end(),
+        [](Money m) { return m > Money(50, 0); });
+    if (f_if != v.end()) cout << "find_if ( >50,00): " << *f_if << endl;
+
+    // count: подсчёт количества элементов, равных нулю
+    int cnt = count(v.begin(), v.end(), Money(0, 0));
+    cout << "count нулевых: " << cnt << endl;
+
+    // count_if: подсчёт элементов, меньших 100 рублей
+    int cnt_if = count_if(v.begin(), v.end(),
+        [](Money m) { return m < Money(100, 0); });
+    cout << "count_if ( <100,00): " << cnt_if << endl;
+
+    // 7. for_each: применение функции к каждому элементу
+    cout << "\n--- for_each (вывод) ---\n";
+    for_each(v.begin(), v.end(),
+        [](Money m) { cout << "Элемент: " << m << endl; });
+}
+
+// ЗАДАЧА 2: ОЧЕРЕДЬ (queue<Money>)
+void task2_queue() {
+    cout << "\n========== ЗАДАЧА 2: ОЧЕРЕДЬ ==========\n";
+    queue<Money> q; // создаём пустую очередь (адаптер контейнера)
+    int n;
+    cout << "Введите количество элементов: ";
+    cin >> n;
+
+    for (int i = 0; i < n; ++i) {
+        Money m;
+        cin >> m;
+        q.push(m);
+    }
+
+    // вспомогательная лямбда для вывода очереди (без изменения исходной очереди – передача по значению)
+    auto printQueue = [](queue<Money> qq, const string& name) {
+        cout << name << ": ";
+        while (!qq.empty()) { // пока очередь не пуста
+            cout << qq.front() << " "; // выводим первый элемент
+            qq.pop(); // удаляем его из копии
+        }
+        cout << endl;
+        };
+    printQueue(q, "Исходная очередь");
+
+    // так как очередь не поддерживает итераторы, копируем данные в вектор
+    vector<Money> v; // временный вектор
+    while (!q.empty()) { // пока исходная очередь не опустеет
+        v.push_back(q.front()); // копируем первый элемент очереди в вектор
+        q.pop(); // удаляем элемент из очереди
+    }
+
+    auto minIt = min_element(v.begin(), v.end()); // минимальный элемент в векторе
+    Money minVal = *minIt;
+    cout << "Минимальный элемент: " << minVal << endl;
+    v.push_back(minVal); // добавляем минимальный в конец вектора
+
+    Money key;
+    cout << "Введите рубли и копейки для удаления. ";
+    cin >> key;
+    auto findIt = find(v.begin(), v.end(), key);
+    if (findIt != v.end()) {
+        v.erase(findIt); // удаляем первый найденный элемент
+        cout << "Элемент " << key << " удалён.\n";
+        printContainer(v, "Вектор после удаления");
+    }
+    else {
+        cout << "Элемент " << key << " не найден.\n";
+    }
+
+    auto maxIt = max_element(v.begin(), v.end()); // максимальный элемент
+    Money maxVal = *maxIt;
+    Money sumMinMax = minVal + maxVal;
+    cout << "Сумма min+max = " << sumMinMax << endl;
+    transform(v.begin(), v.end(), v.begin(), // прибавляем сумму к каждому элементу
+        [sumMinMax](Money m) { return m + sumMinMax; });
+
+    // replace_if: заменить элементы < 50 руб на 0
+    cout << "\n--- replace_if (замена < 50,00 на 0,00) ---\n";
+    replace_if(v.begin(), v.end(),
+        [](Money m) { return m < Money(50, 0); },
+        Money(0, 0));
+    // remove_if: удалить нулевые элементы
+    auto newEnd = remove_if(v.begin(), v.end(),
+        [](Money m) { return m == Money(0, 0); });
+    v.erase(newEnd, v.end());
+
+    // sort по возрастанию и убыванию
+    cout << "--- sort по возрастанию ---\n";
+    sort(v.begin(), v.end());
+    printContainer(v, "Возрастание");
+    cout << "--- sort по убыванию ---\n";
+    sort(v.begin(), v.end(), greater<Money>());
+    printContainer(v, "Убывание");
+
+    // find / count_if
+    Money searchVal(100, 0);
+    auto f = find(v.begin(), v.end(), searchVal);
+    if (f != v.end()) cout << "find: " << *f << " найден\n";
+    else cout << "find: " << searchVal << " не найден\n";
+
+    int cnt = count_if(v.begin(), v.end(),
+        [](Money m) { return m > Money(30, 0); });
+    cout << "count_if (>30,00): " << cnt << endl;
+
+    // for_each (вывод)
+    cout << "\n--- for_each (вывод) ---\n";
+    for_each(v.begin(), v.end(), [](Money m) { cout << m << " "; });
+    cout << endl;
+
+    // возвращаем данные из вектора обратно в очередь
+    for (const auto& elem : v) q.push(elem); // помещаем все элементы в очередь
+    printQueue(q, "Итоговая очередь");
+}
+
+// ЗАДАЧА 3: СЛОВАРЬ (map<int, Money>)
+void task3_map() {
+    cout << "\n========== ЗАДАЧА 3: СЛОВАРЬ ==========\n";
+    map<int, Money> dict; // ассоциативный контейнер (ключ – int, значение – Money)
+    int n;
+    cout << "Введите количество элементов: ";
+    cin >> n; // количество пар в словаре
+
+    for (int i = 0; i < n; ++i) { // заполнение словаря
+        int key;
+        Money val;
+        cout << "Введите ключ: ";
+        cin >> key;
+        cin >> val;
+        dict[key] = val; // вставка или обновление по ключу
+    }
+    printMap(dict, "Исходный словарь");
+
+    // поиск минимального элемента по значению (не по ключу) с помощью min_element и лямбды, сравнивающей second
+    auto minPair = min_element(dict.begin(), dict.end(),
+        [](const pair<int, Money>& a, const pair<int, Money>& b) {
+            return a.second < b.second; // сравниваем значения Money
+        });
+    Money minVal = minPair->second;
+    cout << "Минимальное значение: " << minVal << endl;
+    // добавление в "конец" словаря: ключ = максимальный существующий ключ + 1
+    int newKey = dict.rbegin()->first + 1; // rbegin() – итератор на последний элемент (максимальный ключ)
+    dict[newKey] = minVal; // вставляем копию минимального значения с новым ключом
+    printMap(dict, "После добавления min в конец");
+
+    // удаление элемента с заданным ключом
+    int delKey;
+    cout << "Введите ключ для удаления: ";
+    cin >> delKey;
+    auto delIt = dict.find(delKey); // поиск по ключу
+    if (delIt != dict.end()) {
+        dict.erase(delIt); // удаление по итератору
+        cout << "Удалено\n";
+    }
+    else cout << "Ключ не найден\n";
+    printMap(dict, "После удаления");
+
+    // к каждому значению прибавить сумму min+max (по значениям)
+    auto maxPair = max_element(dict.begin(), dict.end(),
+        [](const pair<int, Money>& a, const pair<int, Money>& b) {
+            return a.second < b.second;
+        });
+    Money maxVal = maxPair->second;
+    Money sumMinMax = minVal + maxVal;
+    cout << "Сумма min+max = " << sumMinMax << endl;
+    for (auto& p : dict) p.second += sumMinMax;  // для каждой пары прибавляем сумму к значению
+    printMap(dict, "После прибавления (min+max)");
+
+    // скопируем пары в вектор
+    vector<pair<int, Money>> vec(dict.begin(), dict.end());
+
+    // replace_if: заменить значения > 300 руб на 0,00
+    cout << "\n--- replace_if (замена >300,00 на 0,00) в копии пар ---\n";
+    replace_if(vec.begin(), vec.end(),
+        [](pair<int, Money>& p) { return p.second > Money(300, 0); },
+        make_pair(0, Money(0, 0))); // заменяем пару на (0, 0,00)
+    // remove_if: удалить пары с нулевым значением
+    auto newEnd = remove_if(vec.begin(), vec.end(),
+        [](pair<int, Money>& p) { return p.second == Money(0, 0); });
+    vec.erase(newEnd, vec.end());
+
+    // sort по значению (по возрастанию) – сортируем вектор пар
+    cout << "--- sort пар по значению (возрастание) ---\n";
+    sort(vec.begin(), vec.end(),
+        [](const pair<int, Money>& a, const pair<int, Money>& b) {
+            return a.second < b.second; // сравниваем значения Money
+        });
+    for (auto& p : vec) cout << "[" << p.first << "]=" << p.second << " ";
+    cout << endl;
+
+    // find_if: найти пару с ключом 100
+    auto findPair = find_if(vec.begin(), vec.end(),
+        [](pair<int, Money>& p) { return p.first == 100; });
+    if (findPair != vec.end()) cout << "Найдена пара с ключом 100: " << findPair->second << endl;
+
+    // count_if: количество элементов со значением < 50 руб
+    int cnt = count_if(vec.begin(), vec.end(),
+        [](pair<int, Money>& p) { return p.second < Money(50, 0); });
+    cout << "Количество элементов со значением <50,00: " << cnt << endl;
+
+    // for_each: вывести каждую пару
+    cout << "\n--- for_each (вывод пар) ---\n";
+    for_each(vec.begin(), vec.end(),
+        [](pair<int, Money>& p) { cout << "(" << p.first << "," << p.second << ") "; });
+    cout << endl;
+
+    // возвращаем изменённые данные обратно в map
+    dict.clear(); // очищаем исходный словарь
+    for (auto& p : vec) dict[p.first] = p.second; // заполняем заново из вектора
+    printMap(dict, "Словарь после демонстрации алгоритмов");
+}
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+    task1_vector();
+    task2_queue();
+    task3_map();
+    return 0;
+}
+
+
+
+
+
+Money.cpp
+
+#include "Money.h" 
+
+Money::Money() : rubles(0), kopeks(0) { // конструктор без параметров: инициализирует рубли и копейки нулями
+}
+
+Money::Money(long r, int k) : rubles(r), kopeks(k) {   // конструктор с параметрами: задаёт рубли и копейки из аргументов
+    normalize();
+}
+
+Money::Money(const Money& other) : rubles(other.rubles), kopeks(other.kopeks) { // конструктор копирования: копирует поля из другого объекта
+}
+
+Money::~Money() { // деструктор класса Money
+}
+
+long Money::getRubles() const { // метод получения рублей (константный, не изменяет объект)
+    return rubles; // возвращает значение поля rubles
+}
+
+int Money::getKopeks() const { // метод получения копеек (константный)
+    return kopeks; // возвращает значение поля kopeks
+}
+
+void Money::setRubles(long r) { // устанавливает новое значение рублей
+    rubles = r; // прямое присваивание полю rubles
+}
+
+void Money::setKopeks(int k) { // устанавливает новое значение копеек
+    kopeks = k; // присваивание полю kopeks
+    normalize();
+}
+
+long Money::toKopeks() const { // переводит сумму в копейки (константный метод)
+    return rubles * 100 + kopeks; // рубли умножаем на 100, прибавляем копейки
+}
+
+void Money::normalize() { // приведение копеек в диапазон 0..99, корректировка рублей
+    if (kopeks >= 100) { // если копеек 100 или больше
+        rubles += kopeks / 100; // добавляем целые рубли (например, 150 копеек = 1 рубль)
+        kopeks = kopeks % 100; // оставляем остаток копеек (0..99)
+    }
+    else if (kopeks < 0) { // если копейки отрицательные
+        long total = rubles * 100 + kopeks; // переводим всю сумму в копейки (может быть отрицательной)
+        rubles = total / 100; // целочисленное деление даёт рубли (с округлением к нулю)
+        kopeks = total % 100; // остаток – копейки (может быть отрицательным)
+        if (kopeks < 0) { // если копейки всё ещё отрицательны
+            rubles--; // занимаем 1 рубль (уменьшаем рубли на 1)
+            kopeks += 100; // добавляем 100 копеек, теперь копейки в [0,99]
+        }
+    }
+}
+
+Money& Money::operator=(const Money& other) { // оператор присваивания
+    if (this != &other) { // проверка на самоприсваивание (адрес текущего объекта не равен адресу other)
+        rubles = other.rubles; // копируем рубли
+        kopeks = other.kopeks; // копируем копейки
+    }
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+Money Money::operator/(const Money& other) const { // оператор деления двух сумм
+    if (other.rubles == 0 && other.kopeks == 0) { // проверка деления на ноль
+        cout << "Ошибка: деление на ноль!" << endl;
+        return Money(0, 0); // возвращаем нулевую сумму
+    }
+    double result = (double)toKopeks() / other.toKopeks(); // вычисляем вещественное частное (копейки/копейки)
+    long totalKopeks = (long)(result * 100); // переводим результат в копейки (умножаем на 100 и округляем)
+    return Money(totalKopeks / 100, totalKopeks % 100); // создаём и возвращаем новую сумму из рублей и копеек
+}
+
+Money Money::operator*(double factor) const { // оператор умножения суммы на дробное число
+    long totalKopeks = (long)(toKopeks() * factor); // умножаем копейки на factor, округляем до целых
+    return Money(totalKopeks / 100, totalKopeks % 100); // создаём и возвращаем новую сумму
+}
+
+Money& Money::operator++() { // префиксный инкремент (++m) – увеличивает на 1 копейку
+    long total = toKopeks() + 1; // увеличиваем общее количество копеек на 1
+    rubles = total / 100; // вычисляем новые рубли
+    kopeks = total % 100; // вычисляем новые копейки
+    return *this; // возвращаем ссылку на изменённый объект
+}
+
+Money Money::operator++(int) { // постфиксный инкремент (m++) – увеличивает, но возвращает старое значение
+    Money temp = *this; // сохраняем старую копию объекта
+    ++(*this); // вызываем префиксный инкремент для увеличения текущего объекта
+    return temp; // возвращаем старое значение (копию)
+}
+
+bool Money::operator<(const Money& other) const { // оператор "меньше"
+    return toKopeks() < other.toKopeks(); // сравниваем общие суммы в копейках
+}
+
+bool Money::operator>(const Money& other) const { // оператор "больше"
+    return toKopeks() > other.toKopeks(); // сравнение в копейках
+}
+
+bool Money::operator==(const Money& other) const { // оператор равенства
+    return toKopeks() == other.toKopeks(); // равенство копеек означает равенство сумм
+}
+
+bool Money::operator!=(const Money& other) const { // оператор неравенства
+    return !(*this == other);
+}
+
+Money Money::operator+(const Money& other) const { // оператор сложения двух сумм
+    long total = toKopeks() + other.toKopeks(); // складываем копейки
+    return Money(total / 100, total % 100); // возвращаем новую нормализованную сумму
+}
+
+Money& Money::operator+=(const Money& other) { // оператор сложения с присваиванием
+    long total = toKopeks() + other.toKopeks(); // вычисляем сумму в копейках
+    rubles = total / 100; // устанавливаем новые рубли
+    kopeks = total % 100; // устанавливаем новые копейки
+    return *this; // возвращаем ссылку на текущий объект
+}
+
+istream& operator>>(istream& in, Money& m) { // глобальная функция ввода (друг класса)
+    cout << "Введите рубли: ";
+    in >> m.rubles;
+    cout << "Введите копейки: ";
+    in >> m.kopeks;
+    m.normalize();
+    return in; // возвращаем поток для цепочечного вызова
+}
+
+ostream& operator<<(ostream& out, const Money& m) { // глобальная функция вывода (друг класса)
+    out << m.rubles << ",";
+    if (m.kopeks < 10) out << "0";
+    out << m.kopeks;
+    return out; // возвращаем поток для цепочечного вызова
+}
+
+
+
+
+Money.h
+
+#pragma once
+#ifndef MONEY_H
+#define MONEY_H
+#include <iostream>
+using namespace std;
+
+class Money {
+private:
+    long rubles;
+    int kopeks;
+
+public:
+    Money(); // конструктор без параметров (создаёт 0,00)
+    Money(long r, int k); // конструктор с параметрами (рубли, копейки)
+    Money(const Money& other); // конструктор копирования
+
+    ~Money(); // деструктор
+
+    // селекторы (геттеры) – константные методы, не изменяющие объект
+    long getRubles() const; // возвращает количество рублей
+    int getKopeks() const; // возвращает количество копеек
+
+    // модификаторы (сеттеры)
+    void setRubles(long r); // устанавливает новое значение рублей
+    void setKopeks(int k); // устанавливает копейки и нормализует сумму
+
+    long toKopeks() const; // переводит всю сумму в копейки (например, 12,50 -> 1250)
+    void normalize(); // приводит копейки к диапазону 0..99 (корректирует рубли)
+
+    Money& operator=(const Money& other); // оператор присваивания
+    Money operator/(const Money& other) const; // деление двух денежных сумм
+    Money operator*(double factor) const; // умножение на дробное число
+    Money& operator++(); // префиксный инкремент (увеличение на 1 копейку)
+    Money operator++(int); // постфиксный инкремент
+
+    bool operator<(const Money& other) const; // сравнение "меньше" (по общей сумме в копейках)
+    bool operator>(const Money& other) const; // сравнение "больше"
+    bool operator==(const Money& other) const; // равенство
+    bool operator!=(const Money& other) const; // неравенство
+    Money operator+(const Money& other) const; // сложение двух сумм
+    Money& operator+=(const Money& other); // сложение с присваиванием
+
+    friend istream& operator>>(istream& in, Money& m); // ввод из потока
+    friend ostream& operator<<(ostream& out, const Money& m); // вывод в поток
+};
+
+#endif
