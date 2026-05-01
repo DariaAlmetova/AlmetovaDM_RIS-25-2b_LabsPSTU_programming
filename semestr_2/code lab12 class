@@ -1,0 +1,570 @@
+12_1lab.cpp
+
+#include <iostream>
+#include <set>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
+using namespace std;
+
+typedef multiset<float> TMultiSet; // определение псевдонима TMultiSet для типа multiset<float>
+
+// функция формирования multiset из n случайных вещественных чисел типа float
+TMultiSet make_multiset(int n) {
+    TMultiSet ms; // создаём пустой контейнер multiset
+    for (int i = 0; i < n; ++i) {
+        float val = (float)(rand() % 100) / 10.0f - 5.0f; // генерация случайного числа в диапазоне [-5.0, 4.9]
+        ms.insert(val); // вставка сгенерированного значения в multiset (автоматически упорядочивается по возрастанию)
+    }
+    return ms; // возвращаем заполненный multiset
+}
+
+// функция печати multiset (принимает константную ссылку, чтобы не копировать)
+void print_multiset(const TMultiSet& ms) {
+    for (float x : ms) // перебираем все элементы в порядке возрастания
+        cout << x << " ";
+    cout << endl;
+}
+
+// функция поиска минимального элемента в multiset
+float find_min(const TMultiSet& ms) {
+    if (ms.empty()) return 0;
+    return *ms.begin(); // так как multiset упорядочен по возрастанию, begin() указывает на минимальный элемент
+}
+
+// функция добавления минимального элемента в контейнер (вставка копии)
+void add_min_to_end(TMultiSet& ms) {
+    if (ms.empty()) return; // ксли контейнер пуст – ничего не делаем
+    ms.insert(find_min(ms)); // находим минимальный элемент и вставляем его копию (дубликат)
+}
+
+// функция удаления первого вхождения элемента с заданным ключом (значением)
+bool delete_by_key(TMultiSet& ms, float key) {
+    auto it = ms.find(key); // ищем итератор на первый элемент, равный key (find возвращает итератор или end())
+    if (it != ms.end()) { // если элемент найден (итератор не указывает на конец)
+        ms.erase(it); // удаляем элемент по этому итератору
+        return true;
+    }
+    return false;
+}
+
+// функция добавления к каждому элементу суммы минимального и максимального элементов контейнера
+void add_sum_min_max(TMultiSet& ms) {
+    if (ms.empty()) return;
+    float min_val = *ms.begin(); // минимальный элемент (первый в упорядоченном множестве)
+    float max_val = *ms.rbegin(); // максимальный элемент (последний, rbegin() – обратный итератор на конец)
+    float sum = min_val + max_val;
+
+    vector<float> temp(ms.begin(), ms.end()); // создаём вектор из всех элементов multiset (копируем)
+    ms.clear(); // очищаем исходный multiset
+    for (float& x : temp) { // перебираем элементы вектора по ссылке
+        x += sum;
+        ms.insert(x); // вставляем изменённый элемент обратно в multiset (автоматически упорядочится)
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    srand((unsigned)time(0));
+
+    int n;
+    cout << "Размер multiset: "; cin >> n;
+    TMultiSet ms = make_multiset(n);
+    cout << "Исходный: "; print_multiset(ms);
+
+    add_min_to_end(ms);
+    cout << "После добавления min в конец: "; print_multiset(ms);
+
+    float key;
+    cout << "Ключ для удаления: "; cin >> key;
+    if (delete_by_key(ms, key)) {
+        cout << "После удаления: "; print_multiset(ms);
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    add_sum_min_max(ms);
+    cout << "После + (min+max): "; print_multiset(ms);
+
+    return 0;
+}
+
+
+
+12_2lab.cpp
+
+#include <iostream>
+#include <set>
+#include <vector>
+#include "Money.h"
+using namespace std;
+
+typedef multiset<Money> TMultiSet; // определение псевдонима TMultiSet для типа multiset<Money> (для краткости)
+
+// функция формирования multiset из n элементов типа Money
+TMultiSet make_multiset(int n) {
+    TMultiSet ms; // создаём пустой контейнер multiset
+    for (int i = 0; i < n; ++i) {
+        Money m; // создаём временный объект Money (конструктор по умолчанию)
+        cout << "Элемент " << i + 1 << ":\n";
+        cin >> m;
+        ms.insert(m); // вставка введённого объекта в multiset (автоматически упорядочивается по возрастанию)
+    }
+    return ms; // возвращаем заполненный multiset
+}
+
+// функция печати multiset (принимает константную ссылку, чтобы не копировать)
+void print_multiset(const TMultiSet& ms) {
+    for (const Money& m : ms)
+        cout << m << " ";
+    cout << endl;
+}
+
+// функция поиска минимального элемента в multiset
+Money find_min(const TMultiSet& ms) {
+    if (ms.empty()) return Money(); // если контейнер пуст – возвращаем нулевую сумму (0,00)
+    return *ms.begin(); // так как multiset упорядочен по возрастанию, begin() указывает на минимальный элемент
+}
+
+// функция добавления минимального элемента в контейнер (вставка копии)
+void add_min_to_end(TMultiSet& ms) {
+    if (ms.empty()) return;
+    ms.insert(find_min(ms));
+}
+
+// функция удаления первого вхождения элемента с заданным ключом (значением) из multiset
+bool delete_by_key(TMultiSet& ms, const Money& key) {
+    auto it = ms.find(key); // ищем итератор на первый элемент, равный key (find возвращает итератор или end())
+    if (it != ms.end()) { // если элемент найден (итератор не указывает на конец)
+        ms.erase(it); // удаляем элемент по этому итератору
+        return true;
+    }
+    return false;
+}
+
+// функция добавления к каждому элементу суммы минимального и максимального элементов контейнера
+void add_sum_min_max(TMultiSet& ms) {
+    if (ms.empty()) return;
+    Money min_val = *ms.begin();
+    Money max_val = *ms.rbegin();
+    Money sum = min_val + max_val;
+
+    vector<Money> temp(ms.begin(), ms.end()); // создаём вектор из всех элементов multiset (копируем)
+    ms.clear(); // очищаем исходный multiset
+    for (Money& m : temp) { // перебираем элементы вектора по ссылке
+        m = m + sum;
+        ms.insert(m); // вставляем изменённый элемент обратно в multiset (автоматически упорядочится)
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Размер multiset: "; cin >> n;
+    TMultiSet ms = make_multiset(n);
+    cout << "Исходный: "; print_multiset(ms);
+
+    add_min_to_end(ms);
+    cout << "После добавления min в конец: "; print_multiset(ms);
+
+    Money key; 
+    cout << "Введите ключ для удаления:\n";
+    cin >> key;
+    if (delete_by_key(ms, key)) {
+        cout << "После удаления: "; print_multiset(ms);
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    add_sum_min_max(ms);
+    cout << "После + (min+max): "; print_multiset(ms);
+
+    return 0;
+}
+
+
+
+
+12_3lab.cpp
+
+#include <iostream>
+#include "MultiSetContainer.h"
+#include "Money.h"
+using namespace std;
+
+int main() {
+    setlocale(LC_ALL, "ru");
+    int n;
+    cout << "Размер multiset: "; cin >> n;
+    MultiSetContainer<Money> cont(n);
+    cout << "Исходный: "; cont.Print();
+
+    cont.AddMinToEnd();
+    cout << "После добавления min в конец: "; cont.Print();
+
+    Money key;
+    cout << "Введите ключ для удаления:\n";
+    cin >> key;
+    if (cont.DeleteByKey(key)) {
+        cout << "После удаления: "; cont.Print();
+    }
+    else {
+        cout << "Элемент не найден\n";
+    }
+
+    cont.AddSumMinMax();
+    cout << "После + (min+max): "; cont.Print();
+
+    return 0;
+}
+
+
+
+MultiSetContainer.h
+
+#pragma once
+#include <iostream>
+#include <set>
+#include <vector>
+using namespace std;
+
+template <class T> // объявление шаблона класса с параметром типа T (тип хранимых элементов)
+class MultiSetContainer { // начало определения шаблонного класса MultiSetContainer (контейнер-обёртка над multiset)
+    multiset<T> ms; // приватное поле: внутренний контейнер multiset, хранящий элементы типа T
+public:
+    // конструктор, принимающий размер n (количество элементов для ввода)
+    MultiSetContainer(int n) {
+        T a; // временная переменная для хранения вводимого значения
+        for (int i = 0; i < n; ++i) {
+            cout << "Элемент " << i + 1 << ":\n";
+            cin >> a;
+            ms.insert(a);  // вставка введённого элемента в multiset (автоматически упорядочивается)
+        }
+    }
+
+    // метод печати содержимого контейнера (константный, не изменяет объект)
+    void Print() const {
+        for (const T& x : ms)
+            cout << x << " ";
+        cout << endl;
+    }
+
+    // метод поиска минимального элемента (возвращает копию минимума)
+    T FindMin() const {
+        if (ms.empty()) return T(); // если контейнер пуст – возвращаем значение по умолчанию (конструктор без параметров)
+        return *ms.begin(); // так как multiset упорядочен, begin() указывает на минимальный элемент
+    }
+
+    // Ммтод добавления минимального элемента в контейнер (вставка копии)
+    void AddMinToEnd() {
+        if (ms.empty()) return;
+        ms.insert(FindMin());
+    }
+
+    // метод удаления первого вхождения элемента с заданным ключом (значением)
+    bool DeleteByKey(const T& key) {
+        auto it = ms.find(key); // ищем итератор на первый элемент, равный key (find возвращает итератор или end())
+        if (it != ms.end()) { // если элемент найден (итератор не указывает на конец)
+            ms.erase(it); // удаляем элемент по этому итератору
+            return true;
+        }
+        return false;
+    }
+
+    // метод прибавления к каждому элементу суммы минимального и максимального элементов контейнера
+    void AddSumMinMax() {
+        if (ms.empty()) return;
+        T minv = *ms.begin();
+        T maxv = *ms.rbegin();
+        T sum = minv + maxv;
+
+        vector<T> temp(ms.begin(), ms.end()); // создаём вектор из всех элементов multiset (копируем)
+        ms.clear(); // очищаем исходный multiset
+        for (T& val : temp) { // перебираем элементы вектора по ссылке
+            val = val + sum;
+            ms.insert(val); // вставляем изменённый элемент обратно в multiset (автоматически упорядочится)
+        }
+    }
+};
+
+
+
+
+ver2
+
+#pragma once
+#include <iostream>
+using namespace std;
+
+template <class T> // объявление шаблона класса с параметром типа T (тип хранимых элементов)
+class MultiSetContainer { // начало определения шаблонного класса MultiSetContainer
+private:
+    T* data; // указатель на динамический массив элементов
+    int size; // текущее количество элементов
+    int capacity; // выделенная ёмкость
+
+    // вспомогательная функция для расширения ёмкости
+    void reserve(int new_capacity) {
+        if (new_capacity <= capacity) return;
+        T* new_data = new T[new_capacity];
+        for (int i = 0; i < size; ++i)
+            new_data[i] = data[i];
+        delete[] data;
+        data = new_data;
+        capacity = new_capacity;
+    }
+
+    // бинарный поиск позиции для вставки элемента (первая позиция, где element >= value)
+    int lower_bound_position(const T& value) const {
+        int left = 0, right = size;
+        while (left < right) {
+            int mid = left + (right - left) / 2;
+            if (data[mid] < value)
+                left = mid + 1;
+            else
+                right = mid;
+        }
+        return left;
+    }
+
+    // вставка элемента в отсортированный массив
+    void insert_sorted(const T& value) {
+        if (size == capacity) {
+            int new_capacity = (capacity == 0) ? 1 : capacity * 2;
+            reserve(new_capacity);
+        }
+        int pos = lower_bound_position(value);
+        // сдвиг элементов вправо
+        for (int i = size; i > pos; --i)
+            data[i] = data[i - 1];
+        data[pos] = value;
+        ++size;
+    }
+
+public:
+    // конструктор, принимающий размер n (количество элементов для ввода)
+    MultiSetContainer(int n) : data(nullptr), size(0), capacity(0) {
+        T a; // временная переменная для хранения вводимого значения
+        for (int i = 0; i < n; ++i) {
+            cout << "Элемент " << i + 1 << ":\n";
+            cin >> a;
+            insert_sorted(a); // вставка с сохранением порядка
+        }
+    }
+
+    // конструктор копирования
+    MultiSetContainer(const MultiSetContainer& other) : data(nullptr), size(other.size), capacity(other.capacity) {
+        if (capacity > 0) {
+            data = new T[capacity];
+            for (int i = 0; i < size; ++i)
+                data[i] = other.data[i];
+        }
+    }
+
+    // оператор присваивания
+    MultiSetContainer& operator=(const MultiSetContainer& other) {
+        if (this != &other) {
+            delete[] data;
+            size = other.size;
+            capacity = other.capacity;
+            data = new T[capacity];
+            for (int i = 0; i < size; ++i)
+                data[i] = other.data[i];
+        }
+        return *this;
+    }
+
+    // деструктор
+    ~MultiSetContainer() {
+        delete[] data;
+    }
+
+    // метод печати содержимого контейнера (константный, не изменяет объект)
+    void Print() const {
+        for (int i = 0; i < size; ++i)
+            cout << data[i] << " ";
+        cout << endl;
+    }
+
+    // метод поиска минимального элемента (возвращает копию минимума)
+    T FindMin() const {
+        if (size == 0) return T(); // если контейнер пуст – возвращаем значение по умолчанию (конструктор без параметров)
+        return data[0]; // так как массив отсортирован, первый элемент минимальный
+    }
+
+    // метод добавления минимального элемента в контейнер (вставка копии)
+    void AddMinToEnd() {
+        if (size == 0) return;
+        insert_sorted(FindMin()); // вставляем копию минимума с сохранением порядка
+    }
+
+    // метод удаления первого вхождения элемента с заданным ключом (значением)
+    bool DeleteByKey(const T& key) {
+        int pos = lower_bound_position(key);
+        if (pos < size && data[pos] == key) {
+            // сдвиг элементов влево
+            for (int i = pos; i < size - 1; ++i)
+                data[i] = data[i + 1];
+            --size;
+            return true;
+        }
+        return false;
+    }
+
+    // метод прибавления к каждому элементу суммы минимального и максимального элементов контейнера
+    void AddSumMinMax() {
+        if (size == 0) return;
+        T minv = data[0];
+        T maxv = data[size - 1];
+        T sum = minv + maxv;
+
+        // создаём временный массив с изменёнными значениями
+        T* temp = new T[size];
+        for (int i = 0; i < size; ++i)
+            temp[i] = data[i] + sum;
+        delete[] data;
+        data = temp;
+        // пересортировка
+        for (int i = 0; i < size - 1; ++i) {
+            for (int j = 0; j < size - i - 1; ++j) {
+                if (data[j] > data[j + 1]) {
+                    T t = data[j];
+                    data[j] = data[j + 1];
+                    data[j + 1] = t;
+                }
+            }
+        }
+        // ёмкость оставляем прежней
+    }
+};
+
+
+
+Money.h
+
+#pragma once
+#ifndef MONEY_H
+#define MONEY_H
+#include <iostream>
+#include <cmath>
+using namespace std;
+
+class Money {
+private:
+    long rubles;
+    int kopeks;
+
+public:
+    Money() : rubles(0), kopeks(0) {} // конструктор по умолчанию: создаёт сумму 0,00 (инициализирует поля нулями)
+
+    Money(long r, int k) : rubles(r), kopeks(k) { // конструктор с параметрами: рубли и копейки
+        normalize(); // вызываем нормализацию для приведения копеек к диапазону 0..99
+    }
+    Money(const Money& other) : rubles(other.rubles), kopeks(other.kopeks) {} // конструктор копирования
+    Money(long total_kopeks) : rubles(total_kopeks / 100), kopeks(total_kopeks % 100) { // конструктор из общего количества копеек
+        normalize();
+    }
+    ~Money() {} // деструктор
+
+    Money& operator=(const Money& other) { // перегрузка оператора =
+        if (this != &other) { // проверка на самоприсваивание (если объект не равен сам себе)
+            rubles = other.rubles; // копируем рубли
+            kopeks = other.kopeks; // копируем копейки
+        }
+        return *this; // возвращаем ссылку на текущий объект
+    }
+
+    Money operator+(const Money& other) const { // сложение двух сумм
+        return Money(toKopeks() + other.toKopeks()); // переводим в копейки, складываем, создаём новый Money
+    }
+
+    Money& operator+=(const Money& other) { // составное присваивание с добавлением
+        *this = *this + other; // используем уже определённый operator+
+        return *this; // возвращаем ссылку на текущий объект
+    }
+
+    Money operator/(int divisor) const { // деление суммы на целое число
+        if (divisor == 0) { // защита от деления на ноль
+            cerr << "Ошибка: деление на ноль!\n";
+            return Money(0, 0); // возвращаем нулевую сумму
+        }
+        return Money(toKopeks() / divisor); // делим копейки на целое число, создаём новый Money
+    }
+
+    Money operator/(const Money& other) const { // деление одной суммы на другую (возвращает отношение)
+        if (other.toKopeks() == 0) { // если делитель равен нулю
+            cerr << "Ошибка: деление на ноль!\n";
+            return Money(0, 0);
+        }
+        double ratio = (double)toKopeks() / other.toKopeks(); // вещественное отношение в копейках
+        return Money((long)(ratio * 100)); // умножаем на 100 и преобразуем в копейки, создаём Money
+    }
+
+    Money operator*(double factor) const { // умножение суммы на дробное число
+        return Money((long)(toKopeks() * factor)); // умножаем копейки на factor, округляем, создаём Money
+    }
+
+    bool operator<(const Money& other) const { // оператор "меньше"
+        return toKopeks() < other.toKopeks(); // сравниваем общие количества копеек
+    }
+    bool operator>(const Money& other) const { // оператор "больше"
+        return toKopeks() > other.toKopeks();
+    }
+    bool operator==(const Money& other) const { // оператор "равно"
+        return toKopeks() == other.toKopeks();
+    }
+    bool operator!=(const Money& other) const { // оператор "не равно"
+        return !(*this == other); // реализуем через operator==
+    }
+
+    Money& operator++() { // префиксный ++ (++a)
+        *this = Money(toKopeks() + 1); // увеличиваем общее количество копеек на 1, присваиваем себе
+        return *this; // возвращаем ссылку на себя (уже изменённый объект)
+    }
+    Money operator++(int) { // постфиксный ++ (a++)
+        Money temp = *this; // сохраняем старое значение
+        ++(*this); // вызываем префиксный инкремент для увеличения текущего объекта
+        return temp; // возвращаем старое значение (копию)
+    }
+
+    long toKopeks() const { // возвращает сумму в копейках (рубли*100 + копейки)
+        return rubles * 100 + kopeks;
+    }
+
+    void normalize() { // приведение копеек к диапазону 0..99, корректировка рублей
+        if (kopeks >= 100) {
+            rubles += kopeks / 100; // добавляем к рублям целое количество сотен копеек
+            kopeks %= 100; // оставляем остаток копеек (от 0 до 99)
+        }
+        else if (kopeks < 0) { // если копейки отрицательные
+            long total = toKopeks(); // общая сумма в копейках (может быть отрицательной)
+            rubles = total / 100; // целая часть от деления на 100 (округление к нулю)
+            kopeks = total % 100; // остаток (знак совпадает с total)
+            if (kopeks < 0) { // если остаток отрицательный
+                rubles--; // уменьшаем рубли на 1
+                kopeks += 100; // добавляем 100 к копейкам (становятся 0..99)
+            }
+        }
+    }
+
+    friend istream& operator>>(istream& in, Money& m) { // перегрузка оператора ввода >>
+        cout << "Рубли: "; in >> m.rubles;
+        cout << "Копейки: "; in >> m.kopeks;
+        m.normalize();
+        return in; // возвращаем поток для цепочечных операций
+    }
+    friend ostream& operator<<(ostream& out, const Money& m) { // перегрузка оператора вывода <<
+        long total = m.toKopeks(); // получаем общую сумму в копейках
+        if (total < 0) out << "-";
+        long abs_total = abs(total);
+        out << abs_total / 100 << ","; // выводим рубли (целая часть) и запятую-разделитель
+        if (abs_total % 100 < 10) out << "0"; // если копеек меньше 10, выводим ведущий ноль
+        out << abs_total % 100; // выводим копейки (две цифры)
+        return out; // возвращаем поток для цепочечных операций
+    }
+};
+
+#endif
