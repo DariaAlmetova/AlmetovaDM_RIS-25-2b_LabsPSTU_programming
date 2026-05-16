@@ -1,0 +1,1674 @@
+#ifndef EDGEITEM_H
+#define EDGEITEM_H
+
+#include <QGraphicsItem>
+#include <QGraphicsSimpleTextItem>
+#include <QPen>
+#include <QColor>
+#include "vertexitem.h"
+
+class EdgeItem : public QGraphicsItem // графический элемент, который представляет одно ребро графа на сцене
+{
+public:
+    EdgeItem(VertexItem *from, VertexItem *to, int weight,
+             QGraphicsItem *parent = nullptr);
+
+    int fromIdx() const; // индекс вершины-начала
+    int toIdx() const; // индекс вершины-конца
+    int weight() const; // вес ребра
+    void setWeight(int w); // изменить вес (перерисовывает метку)
+    void updatePosition(); // пересчитать геометрию (после перемещения вершин)
+    void setColor(const QColor &color, int width = 2); // задать произвольный цвет линии
+    void resetColor(); // вернуть цвет по умолчанию (чёрный)
+    void setHighlight(bool on); // включить/выключить красную подсветку
+    void updateIndices(); // заглушка (индексы вершин обновляются в сцене)
+
+    // обязательные методы QGraphicsItem для отрисовки и зоны выделения
+    QRectF boundingRect() const override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+               QWidget *widget) override;
+
+private:
+    VertexItem *m_from; // исходная вершина
+    VertexItem *m_to; // конечная вершина
+    int m_weight; // вес (стоимость) ребра
+    QPen m_pen; // текущее перо (цвет + толщина)
+};
+
+#endif
+
+
+
+
+
+#ifndef GRAPHSCENE_H
+#define GRAPHSCENE_H
+
+#include <QGraphicsScene>
+#include <QVector>
+#include "vertexitem.h"
+#include "edgeitem.h"
+#include "tspsolver.h"
+
+class GraphScene : public QGraphicsScene // центральный управляющий компонент графического редактора графа
+{
+    Q_OBJECT
+public:
+    enum Mode { Select, AddVertex, AddEdge }; // режимы работы: выделение, добавление вершины, добавление ребра
+
+    explicit GraphScene(QObject *parent = nullptr);
+
+    void setMode(Mode mode); // сменить текущий режим
+    void vertexMoved(int idx, QPointF newPos); // вызывается, когда пользователь перетащил вершину
+    Mode mode() const; // вернуть текущий режим
+
+    VertexItem* addVertex(const QPointF &pos, const QString &name); // создать новую вершину
+    EdgeItem* addEdge(int fromIdx, int toIdx, int weight); // создать новое ребро (если ещё нет)
+    void removeSelected(); // удалить выделенные вершины/рёбра
+    void clearAll(); // полностью очистить сцену
+    void resetEdgeColors(); // вернуть всем рёбрам обычный чёрный цвет
+
+    std::vector<std::vector<int>> toMatrix() const; // построить матрицу смежности по текущему графу
+    QVector<EdgeItem*> edges() const { return m_edges; } // список всех рёбер
+    QVector<VertexItem*> vertices() const { return m_vertices; } // список всех вершин
+    EdgeItem* findEdge(int from, int to) const; // найти ребро по вершинам (или nullptr)
+
+signals:
+    void graphModified(); // сигнал: граф изменился (добавление/удаление/перемещение)
+
+protected:
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override; // обработка нажатий мыши (режимы)
+
+private:
+    Mode m_mode = Select; // текущий режим
+    QVector<VertexItem*> m_vertices; // хранилище вершин
+    QVector<EdgeItem*> m_edges; // хранилище рёбер
+
+    VertexItem* m_edgeSource = nullptr; // временная вершина-начало при рисовании ребра
+    bool m_drawingEdge = false; // идёт ли сейчас процесс создания ребра
+};
+
+#endif
+
+
+
+
+
+
+
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <QtWidgets>
+#include "graphscene.h"
+#include "tspsolver.h"
+
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
+
+private slots:
+    // редактирование графа
+    void loadExample(); // загрузить тестовый граф (6 вершин)
+    void clearGraph();// полностью очистить сцену и результаты
+    void setModeSelect(); // режим выделения/перемещения
+    void setModeAddVertex(); // режим добавления вершины (по клику)
+    void setModeAddEdge(); // режим добавления ребра (выбрать две вершины)
+    void deleteSelected(); // удалить выделенные вершины или рёбра
+    void importMatrix(); // импорт графа из диалога ввода матрицы
+    void exportMatrix(); // сохранить текущий граф в текстовый файл
+    void generateRandomGraph(); // сгенерировать случайный граф
+
+    // поиск маршрутов
+    void findFirstOptimal(); // запустить алгоритм, остановиться после первого оптимального цикла
+    void findAllOptimal(); // запустить алгоритм, найти все оптимальные циклы
+    void stepNext();  // выполнить один шаг пошаговой демонстрации
+    void startStepByStep(); // начать пошаговый режим
+    void stopStepByStep(); // остановить пошаговый режим
+    void previousRoute(); // переключиться на предыдущий найденный маршрут
+    void nextRoute(); // переключиться на следующий найденный маршрут
+    void onRouteComboChanged(int index); // выбрали маршрут в выпадающем списке
+    void onTreeItemClicked(QTreeWidgetItem *item, int column); // клик по элементу дерева решений
+    void updateRouteHighlight(); // перерисовать подсветку текущего маршрута
+
+private:
+    // инициализация интерфейса
+    void createActions(); // создать все QAction
+    void createToolBars(); // разместить кнопки
+    void createDockWidgets(); // создать панель "Дерево решений"
+    QString routeToString(const std::vector<int> &route); // превратить маршрут в строку "0-5-4-..."
+    void updateStepVisualization(); // обновить цвета рёбер в пошаговом режиме
+    void addTreeItem(const QString &desc, int h, const QString &status); // добавить строку в дерево решений
+    void rebuildRouteCombo(); // перезаполнить выпадающий список маршрутов
+
+    // графические компоненты
+    GraphScene *m_scene; // сцена с вершинами и рёбрами
+    QGraphicsView *m_view; // виджет для отображения сцены
+
+    // панели инструментов
+    QToolBar *m_editToolBar; // тулбар "Редактирование"
+    QToolBar *m_algoToolBar; // тулбар "Алгоритм"
+    QToolBar *m_resultToolBar; // тулбар "Результаты" (выбор маршрута)
+
+    // действия (кнопки/пункты меню)
+    QAction *m_selectAction;
+    QAction *m_addVertexAction;
+    QAction *m_addEdgeAction;
+    QAction *m_deleteAction;
+    QAction *m_clearAction;
+    QAction *m_loadExampleAction;
+    QAction *m_importAction;
+    QAction *m_exportAction;
+    QAction *m_findOneAction; // "Первый оптимальный"
+    QAction *m_findAllAction; // "Все оптимальные"
+    QAction *m_stepAction; // "Шаг"
+    QAction *m_startStepAction; // "Пошагово"
+    QAction *m_stopStepAction; // "Стоп"
+    QAction *m_prevRouteAction; // "Предыдущий маршрут"
+    QAction *m_nextRouteAction; // "Следующий маршрут"
+    QAction *m_randomAction; // "Случайный граф"
+
+    // элементы управления результатами
+    QComboBox *m_routeCombo; // выпадающий список всех оптимальных маршрутов
+
+    // дерево решений
+    QDockWidget *m_logDock; // док-панель, содержащая дерево
+    QTreeWidget *m_treeWidget; // виджет дерева (описание / H / статус)
+
+    QLabel *m_statusLabel; // постоянный текст в статус-баре
+
+    // состояние алгоритма
+    TspSolver m_solver; // объект, выполняющий метод ветвей и границ
+    QTimer *m_stepTimer; // таймер
+    std::vector<std::vector<int>> m_optimalRoutes; // найденные оптимальные маршруты
+    int m_currentRouteIndex = -1; // индекс текущего отображаемого маршрута
+    bool m_stepByStepActive = false; // активен ли пошаговый режим
+    int m_currentStep = -1; // номер текущего шага
+
+    // для пошаговой визуализации
+    std::vector<std::pair<int,int>> m_includedEdges; // рёбра, уже включённые в маршрут
+    std::pair<int,int> m_currentConsiderEdge = {-1, -1}; // ребро, которое сейчас рассматривается
+};
+
+#endif
+
+
+
+
+
+
+#ifndef MATRIXDIALOG_H
+#define MATRIXDIALOG_H
+
+#include <QDialog>
+#include <QSpinBox>
+#include <QTableWidget>
+#include <QDialogButtonBox>
+#include <vector>
+#include "tspsolver.h"
+
+class MatrixDialog : public QDialog // диалог ручного ввода матрицы смежности
+{
+    Q_OBJECT
+public:
+    explicit MatrixDialog(QWidget *parent = nullptr);
+
+    // возвращает введённую матрицу и список позиций вершин
+    std::pair<std::vector<std::vector<int>>, QVector<QPointF>> getData() const;
+
+private slots:
+    void onSizeChanged(int n); // обновляет таблицу при изменении числа вершин
+
+private:
+    QSpinBox *m_sizeSpin; // выбор количества вершин (2..50)
+    QTableWidget *m_table; // таблица N×N для ввода весов/INF
+    QDialogButtonBox *m_buttons; // кнопки OK и Cancel
+};
+
+#endif
+
+
+
+
+
+
+#ifndef TSPSOLVER_H
+#define TSPSOLVER_H
+
+#include <vector>
+#include <utility>
+#include <queue>
+#include <functional>
+#include <string>
+
+class TspSolver
+{
+public:
+    static constexpr int INF = 1'000'000'000; // "бесконечность" для отсутствующих рёбер
+
+    // типы шагов для пошаговой демонстрации
+    enum class StepType { Consider, Include, Exclude };
+
+    // описание одного шага алгоритма (для визуализации)
+    struct Step {
+        int level; // глубина узла в дереве решений
+        int lowerBound; // нижняя граница стоимости в этом узле
+        int from, to; // исходные вершины рассматриваемого ребра
+        StepType type; // что происходит с ребром
+        // список всех нулевых клеток текущей матрицы (исходные вершины, штраф)
+        std::vector<std::pair<std::pair<int,int>, int>> zeros;
+    };
+
+    // узел дерева ветвлений
+    struct Node {
+        std::vector<std::vector<int>> matrix; // текущая приведённая матрица
+        std::vector<int> rowVertices; // rowVertices[i] -> исходная вершина
+        std::vector<int> colVertices; // colVertices[j] -> исходная вершина
+        int lowerBound = 0; // нижняя граница стоимости
+        std::vector<std::pair<int,int>> edges; // уже включённые рёбра (в исходных номерах)
+        int level = 0; // глубина в дереве
+        bool operator>(const Node &other) const { return lowerBound > other.lowerBound; }
+    };
+
+    TspSolver() : m_n(0), m_rootLowerBound(0) {}
+    explicit TspSolver(const std::vector<std::vector<int>> &costMatrix);
+
+    void setFindAll(bool findAll) { m_findAll = findAll; } // true – искать все оптимальные маршруты
+
+    // запускает решение, возвращает (стоимость, список маршрутов)
+    std::pair<int, std::vector<std::vector<int>>> solve();
+
+    int getRootLowerBound() const { return m_rootLowerBound; } // нижняя граница корня (после редукции)
+
+    const std::vector<Step>& steps() const { return m_steps; } // доступ к шагам (для пошагового режима)
+
+private:
+    // приведение матрицы: вычитание минимумов строк и столбцов, возвращает сумму вычетов
+    int reduceMatrix(std::vector<std::vector<int>> &mat);
+
+    // выбор нуля с максимальным штрафом
+    std::pair<int,int> selectBestZero(const std::vector<std::vector<int>> &mat);
+
+    // восстановление гамильтонова цикла по списку включённых рёбер
+    std::vector<int> buildPath(const std::vector<std::pair<int,int>> &edges) const;
+
+    // сбор всех нулей текущей матрицы узла с вычислением штрафа
+    std::vector<std::pair<std::pair<int,int>, int>> getAllZeros(const Node &node) const;
+
+    std::vector<std::vector<int>> m_original; // исходная матрица стоимости
+    int m_n; // число вершин
+    int m_rootLowerBound; // нижняя граница корневого узла
+    bool m_findAll = false; // искать ли все оптимальные решения
+    std::vector<Step> m_steps; // сохранённые шаги для пошаговой демонстрации
+};
+
+#endif
+
+
+
+
+
+
+
+#ifndef VERTEXITEM_H
+#define VERTEXITEM_H
+
+#include <QGraphicsEllipseItem> // базовый класс для отрисовки эллипса (круга)
+#include <QGraphicsSimpleTextItem> // для отображения текста (имени вершины)
+#include <QPen>
+#include <QBrush>
+#include <QFont>
+
+class GraphScene;
+
+class VertexItem : public QGraphicsEllipseItem
+{
+public:
+    static constexpr qreal RADIUS = 20.0; // радиус круга вершины
+
+    VertexItem(int index, const QString &name, const QPointF &pos,
+               GraphScene *scene, QGraphicsItem *parent = nullptr);
+
+    int index() const; // возвращает номер (индекс) вершины
+    void setIndex(int idx); // задаёт новый индекс (после удаления других вершин)
+    QString name() const; // возвращает имя вершины (текст внутри круга)
+    void setHighlight(bool on); // включить/выключить красную обводку (подсветка маршрута)
+
+protected:
+    // вызывается Qt при изменении позиции элемента (перетаскивание)
+    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
+
+private:
+    void updateLabelPosition(); // центрирует текстовую метку внутри круга
+
+    int m_index; // номер вершины (0, 1, 2...)
+    QString m_name; // отображаемое имя (обычно совпадает с номером)
+    bool m_highlight = false; // true, если вершина подсвечена (красная обводка)
+    GraphScene *m_scene; // указатель на сцену для уведомления о перемещении
+    QGraphicsSimpleTextItem *m_label; // текстовая метка с именем вершины
+};
+
+#endif
+
+
+
+
+
+
+
+#include "edgeitem.h"
+#include <QPainter>
+#include <QtMath>
+
+EdgeItem::EdgeItem(VertexItem *from, VertexItem *to, int weight,
+                   QGraphicsItem *parent)
+    : QGraphicsItem(parent), m_from(from), m_to(to), m_weight(weight)
+{
+    setFlag(QGraphicsItem::ItemIsSelectable); // позволяет выделять ребро мышью
+    m_pen = QPen(Qt::black, 1.5); // стандартная чёрная линия
+    setZValue(0); // рёбра рисуются под вершинами (у вершин z=1)
+    updatePosition(); // первичный расчёт геометрии
+}
+
+int EdgeItem::fromIdx() const { return m_from->index(); } // индекс вершины-начала
+int EdgeItem::toIdx() const { return m_to->index(); } // индекс вершины-конца
+int EdgeItem::weight() const { return m_weight; } // вес (стоимость) ребра
+
+void EdgeItem::setWeight(int w) {
+    m_weight = w; // обновляем вес
+    update(); // запрашиваем перерисовку (метка изменится)
+}
+
+void EdgeItem::updatePosition() {
+    prepareGeometryChange(); // уведомляем сцену о возможном изменении геометрии
+    update(); // перерисовываем линию с новыми координатами вершин
+}
+
+void EdgeItem::setColor(const QColor &color, int width) {
+    m_pen.setColor(color); // задаём цвет
+    m_pen.setWidth(width); // и толщину линии
+    update(); // перерисовываем
+}
+
+void EdgeItem::resetColor() {
+    m_pen.setColor(Qt::black); // возвращаем чёрный цвет
+    m_pen.setWidth(1.5); // стандартную толщину
+    update();
+}
+
+void EdgeItem::setHighlight(bool on) {
+    if (on)
+        setColor(Qt::red, 3); // красная жирная подсветка
+    else
+        resetColor(); // сброс к обычному виду
+}
+
+void EdgeItem::updateIndices() {} // индексы вершин обновляет сцена, здесь ничего делать не нужно
+
+QRectF EdgeItem::boundingRect() const {
+    QPointF p1 = m_from->pos();
+    QPointF p2 = m_to->pos();
+    qreal extra = VertexItem::RADIUS + 5; // небольшой запас для толщины линии
+    return QRectF(p1, p2).normalized().adjusted(-extra, -extra, extra, extra);
+}
+
+void EdgeItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *) {
+    QPointF p1 = m_from->pos(); // центр первой вершины
+    QPointF p2 = m_to->pos(); // центр второй вершины
+
+    // направление и расстояние между центрами
+    QPointF dir = p2 - p1;
+    qreal len = qSqrt(dir.x()*dir.x() + dir.y()*dir.y());
+    if (len < 1.0) return; // вершины слишком близко — не рисуем
+
+    QPointF unit = dir / len; // единичный вектор направления
+    qreal r = VertexItem::RADIUS; // радиус кругов
+
+    // отступаем от центров на радиус, чтобы линия упиралась в край кружков
+    QPointF start = p1 + unit * r;
+    QPointF end   = p2 - unit * r;
+
+    // рисуем линию
+    painter->setPen(m_pen);
+    painter->drawLine(start, end);
+
+    // рисуем вес ребра красным жирным шрифтом около середины линии
+    QPointF mid = (p1 + p2) / 2.0;
+    painter->setPen(Qt::red);
+    painter->setFont(QFont("Arial", 10, QFont::Bold));
+    painter->drawText(mid + QPointF(5, -5), QString::number(m_weight));
+}
+
+
+
+
+
+
+
+#include "graphscene.h"
+#include <QInputDialog>
+#include <QGraphicsSceneMouseEvent>
+#include <QMessageBox>
+
+GraphScene::GraphScene(QObject *parent) : QGraphicsScene(parent) {
+    setSceneRect(0, 0, 1024, 768); // рабочая область сцены
+}
+
+// переключение режима
+void GraphScene::setMode(Mode mode) {
+    m_mode = mode;
+    m_edgeSource = nullptr; // сбрасываем начальную вершину
+    m_drawingEdge = false; // прекращаем процесс рисования ребра
+}
+
+GraphScene::Mode GraphScene::mode() const { return m_mode; }
+
+// создание вершины
+VertexItem* GraphScene::addVertex(const QPointF &pos, const QString &name) {
+    int idx = m_vertices.size(); // индекс новой вершины
+    auto *v = new VertexItem(idx, name, pos, this); // создаём графический элемент
+    addItem(v); // добавляем на сцену
+    m_vertices.append(v); // запоминаем в списке
+    emit graphModified(); // оповещаем об изменении графа
+    return v;
+}
+
+// создание ребра
+EdgeItem* GraphScene::addEdge(int fromIdx, int toIdx, int weight) {
+    if (fromIdx == toIdx) return nullptr; // петли не допускаются
+
+    // проверяем, нет ли уже такого ребра (в любом направлении)
+    for (auto *e : m_edges) {
+        if ((e->fromIdx() == fromIdx && e->toIdx() == toIdx) ||
+            (e->fromIdx() == toIdx && e->toIdx() == fromIdx))
+            return nullptr;
+    }
+
+    VertexItem *v1 = m_vertices[fromIdx];
+    VertexItem *v2 = m_vertices[toIdx];
+    auto *e = new EdgeItem(v1, v2, weight); // создаём ребро
+    addItem(e);
+    m_edges.append(e);
+    emit graphModified();
+    return e;
+}
+
+// удаление выделенных элементов
+void GraphScene::removeSelected() {
+    QList<QGraphicsItem*> selected = selectedItems();
+    for (auto *item : selected) {
+        if (auto *v = dynamic_cast<VertexItem*>(item)) {
+            // сначала удаляем все рёбра, связанные с этой вершиной
+            QMutableVectorIterator<EdgeItem*> it(m_edges);
+            while (it.hasNext()) {
+                EdgeItem *e = it.next();
+                if (e->fromIdx() == v->index() || e->toIdx() == v->index()) {
+                    removeItem(e);
+                    delete e;
+                    it.remove();
+                }
+            }
+            removeItem(v);
+            m_vertices.removeOne(v);
+            delete v;
+        } else if (auto *e = dynamic_cast<EdgeItem*>(item)) {
+            removeItem(e);
+            m_edges.removeOne(e);
+            delete e;
+        }
+    }
+
+    // перенумеровываем оставшиеся вершины (индексы сдвигаются)
+    for (int i = 0; i < m_vertices.size(); ++i)
+        m_vertices[i]->setIndex(i);
+    for (auto *e : m_edges)
+        e->updateIndices(); // заставляет рёбра обновить ссылки
+    emit graphModified();
+}
+
+// полная очистка сцены
+void GraphScene::clearAll() {
+    for (auto *e : m_edges) { removeItem(e); delete e; }
+    for (auto *v : m_vertices) { removeItem(v); delete v; }
+    m_edges.clear();
+    m_vertices.clear();
+    emit graphModified();
+}
+
+// сброс цветов всех рёбер к обычному (чёрному)
+void GraphScene::resetEdgeColors() {
+    for (auto *e : m_edges)
+        e->resetColor();
+}
+
+// построение матрицы смежности для алгоритма
+std::vector<std::vector<int>> GraphScene::toMatrix() const {
+    int n = m_vertices.size();
+    std::vector<std::vector<int>> mat(n, std::vector<int>(n, TspSolver::INF));
+    for (int i = 0; i < n; ++i) mat[i][i] = TspSolver::INF; // диагональ — бесконечность (петли запрещены)
+
+    for (auto *e : m_edges) {
+        int i = e->fromIdx();
+        int j = e->toIdx();
+        mat[i][j] = e->weight(); // граф двунаправленный
+        mat[j][i] = e->weight();
+    }
+    return mat;
+}
+
+// поиск ребра по двум вершинам
+EdgeItem* GraphScene::findEdge(int from, int to) const {
+    for (auto *e : m_edges)
+        if ((e->fromIdx() == from && e->toIdx() == to) ||
+            (e->fromIdx() == to && e->toIdx() == from))
+            return e;
+    return nullptr;
+}
+
+// вызывается VertexItem при перетаскивании
+void GraphScene::vertexMoved(int idx, QPointF /*newPos*/) {
+    for (auto *e : m_edges) {
+        if (e->fromIdx() == idx || e->toIdx() == idx)
+            e->updatePosition(); // перерисовать ребро с новыми координатами
+    }
+    emit graphModified();
+}
+
+// обработка нажатий мыши в зависимости от режима
+void GraphScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    if (m_mode == AddVertex) {
+        // запрос имени вершины у пользователя
+        bool ok;
+        QString name = QInputDialog::getText(nullptr, "Имя вершины",
+                                             "Введите имя:", QLineEdit::Normal,
+                                             QString::number(m_vertices.size()), &ok);
+        if (ok && !name.isEmpty())
+            addVertex(event->scenePos(), name);
+        event->accept();
+        return;
+    }
+
+    if (m_mode == AddEdge) {
+        QGraphicsItem *item = itemAt(event->scenePos(), QTransform());
+        if (auto *v = dynamic_cast<VertexItem*>(item)) {
+            if (!m_edgeSource) {
+                // первая выбранная вершина – начало ребра
+                m_edgeSource = v;
+                v->setBrush(Qt::yellow); // подсветка выбранной вершины
+                m_drawingEdge = true;
+            } else {
+                // вторая вершина – завершаем создание ребра
+                if (v != m_edgeSource) {
+                    bool ok;
+                    int weight = QInputDialog::getInt(nullptr, "Вес ребра",
+                                                      "Введите вес:", 1, 1, 10000, 1, &ok);
+                    if (ok) addEdge(m_edgeSource->index(), v->index(), weight);
+                }
+                m_edgeSource->setBrush(QColor(200,230,255)); // возвращаем обычный цвет
+                m_edgeSource = nullptr;
+                m_drawingEdge = false;
+            }
+        }
+        event->accept();
+        return;
+    }
+
+    // в режиме Select – стандартное поведение (перетаскивание, выделение)
+    QGraphicsScene::mousePressEvent(event);
+}
+
+
+
+
+
+
+
+
+#include <QApplication>
+#include <QCommandLineParser>
+#include <QTextStream>
+#include "mainwindow.h"
+#include "tspsolver.h"
+
+int main(int argc, char *argv[])
+{
+    QApplication app(argc, argv);
+    QApplication::setApplicationName("TSP Solver");
+    QApplication::setApplicationVersion("1.0");
+
+    // парсер аргументов командной строки
+    QCommandLineParser parser;
+    parser.setApplicationDescription("TSP Branch and Bound Solver");
+    parser.addHelpOption();
+    parser.addVersionOption();
+    QCommandLineOption consoleOption("console", "Run in console mode (read matrix from stdin)");
+    parser.addOption(consoleOption);
+    parser.process(app);
+
+    // консольный режим (запуск с флагом --console)
+    if (parser.isSet(consoleOption)) {
+        QTextStream in(stdin);
+        QTextStream out(stdout);
+
+        int n;
+        in >> n; // число вершин
+        if (n <= 0) {
+            out << "Invalid number of vertices" << Qt::endl;
+            return 1;
+        }
+
+        // чтение матрицы смежности (INF обозначается отрицательным числом)
+        std::vector<std::vector<int>> mat(n, std::vector<int>(n, TspSolver::INF));
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                int val;
+                in >> val;
+                if (val < 0) mat[i][j] = TspSolver::INF;
+                else mat[i][j] = val;
+            }
+        }
+
+        // запуск решения
+        TspSolver solver(mat);
+        solver.setFindAll(false); // ищем только первый оптимальный маршрут
+        auto [cost, allPaths] = solver.solve();
+
+        if (allPaths.empty()) {
+            out << "No solution" << Qt::endl;
+        } else {
+            const auto &path = allPaths.front();
+            out << "Optimal cost: " << cost << Qt::endl;
+            out << "Route: ";
+            for (int v : path) out << v << " ";
+            out << Qt::endl;
+        }
+        return 0; // завершение без запуска GUI
+    }
+
+    // графический режим (обычный запуск)
+    MainWindow w;
+    w.show();
+    return app.exec();
+}
+
+
+
+
+
+
+
+
+
+#include "mainwindow.h"
+#include "matrixdialog.h"
+#include <QMessageBox>
+#include <QFileDialog>
+#include <QTextStream>
+#include <QInputDialog>
+#include <cmath>
+#include <ctime>
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+{
+    m_scene = new GraphScene(this);
+    m_view = new QGraphicsView(m_scene);
+    m_view->setRenderHint(QPainter::Antialiasing);
+    m_view->setDragMode(QGraphicsView::NoDrag);
+    setCentralWidget(m_view); // сцена занимает всё центральное окно
+
+    createActions(); // создание всех QAction
+    createToolBars(); // компоновка тулбаров
+    createDockWidgets(); // создание док-панели «Дерево решений»
+
+    QMenu *viewMenu = menuBar()->addMenu("Вид"); // меню «Вид» с возможностью показать/скрыть панель дерева
+    viewMenu->addAction(m_logDock->toggleViewAction());
+
+    m_statusLabel = new QLabel("Готов");
+    statusBar()->addPermanentWidget(m_statusLabel);
+
+    m_stepTimer = new QTimer(this);
+    connect(m_stepTimer, &QTimer::timeout, this, &MainWindow::stepNext);
+
+    setWindowTitle("Задача Коммивояжёра – метод ветвей и границ");
+    resize(1024, 768);
+}
+
+MainWindow::~MainWindow() {}
+
+void MainWindow::createActions() // создание действий (пунктов меню/кнопок)
+{
+    m_selectAction = new QAction("🖱 Выбор/Перемещение", this);
+    m_selectAction->setCheckable(true);
+    m_selectAction->setChecked(true);
+    connect(m_selectAction, &QAction::triggered, this, &MainWindow::setModeSelect);
+
+    m_addVertexAction = new QAction("➕ Вершина", this);
+    m_addVertexAction->setCheckable(true);
+    connect(m_addVertexAction, &QAction::triggered, this, &MainWindow::setModeAddVertex);
+
+    m_addEdgeAction = new QAction("🔗 Ребро", this);
+    m_addEdgeAction->setCheckable(true);
+    connect(m_addEdgeAction, &QAction::triggered, this, &MainWindow::setModeAddEdge);
+
+    m_deleteAction = new QAction("❌ Удалить", this);
+    connect(m_deleteAction, &QAction::triggered, this, &MainWindow::deleteSelected);
+
+    m_clearAction = new QAction("🗑 Очистить", this);
+    connect(m_clearAction, &QAction::triggered, this, &MainWindow::clearGraph);
+
+    m_loadExampleAction = new QAction("📋 Пример", this);
+    connect(m_loadExampleAction, &QAction::triggered, this, &MainWindow::loadExample);
+
+    m_importAction = new QAction("📥 Импорт", this);
+    connect(m_importAction, &QAction::triggered, this, &MainWindow::importMatrix);
+
+    m_exportAction = new QAction("📤 Экспорт", this);
+    connect(m_exportAction, &QAction::triggered, this, &MainWindow::exportMatrix);
+
+    m_randomAction = new QAction("🎲 Случайный граф", this);
+    m_randomAction->setToolTip("Сгенерировать случайный граф для тестирования");
+    connect(m_randomAction, &QAction::triggered, this, &MainWindow::generateRandomGraph);
+
+    m_findOneAction = new QAction("✨ Первый оптимальный", this);
+    m_findOneAction->setToolTip("Останавливается после нахождения первого цикла стоимостью 16.\n"
+                                "Ветвь исключения (4,3) не развивается.");
+    connect(m_findOneAction, &QAction::triggered, this, &MainWindow::findFirstOptimal);
+
+    m_findAllAction = new QAction("🔁 Все оптимальные", this);
+    m_findAllAction->setToolTip("Находит все оптимальные маршруты (оба цикла 16).\n"
+                                "Развивает ветвь исключения (4,3).");
+    connect(m_findAllAction, &QAction::triggered, this, &MainWindow::findAllOptimal);
+
+    m_stepAction = new QAction("⏭ Шаг", this);
+    connect(m_stepAction, &QAction::triggered, this, &MainWindow::stepNext);
+
+    m_startStepAction = new QAction("▶ Пошагово", this);
+    connect(m_startStepAction, &QAction::triggered, this, &MainWindow::startStepByStep);
+
+    m_stopStepAction = new QAction("⏹ Стоп", this);
+    connect(m_stopStepAction, &QAction::triggered, this, &MainWindow::stopStepByStep);
+    m_stopStepAction->setEnabled(false);
+
+    m_prevRouteAction = new QAction("◀ Предыдущий маршрут", this);
+    connect(m_prevRouteAction, &QAction::triggered, this, &MainWindow::previousRoute);
+
+    m_nextRouteAction = new QAction("Следующий маршрут ▶", this);
+    connect(m_nextRouteAction, &QAction::triggered, this, &MainWindow::nextRoute);
+}
+
+void MainWindow::createToolBars() // компоновка панелей инструментов
+{
+    m_editToolBar = addToolBar("Редактирование");
+    m_editToolBar->addAction(m_selectAction);
+    m_editToolBar->addAction(m_addVertexAction);
+    m_editToolBar->addAction(m_addEdgeAction);
+    m_editToolBar->addAction(m_deleteAction);
+    m_editToolBar->addAction(m_clearAction);
+    m_editToolBar->addSeparator();
+    m_editToolBar->addAction(m_loadExampleAction);
+    m_editToolBar->addAction(m_importAction);
+    m_editToolBar->addAction(m_exportAction);
+    m_editToolBar->addSeparator();
+    m_editToolBar->addAction(m_randomAction);
+
+    QActionGroup *modeGroup = new QActionGroup(this);
+    modeGroup->addAction(m_selectAction);
+    modeGroup->addAction(m_addVertexAction);
+    modeGroup->addAction(m_addEdgeAction);
+
+    m_algoToolBar = addToolBar("Алгоритм");
+    m_algoToolBar->addAction(m_findOneAction);
+    m_algoToolBar->addAction(m_findAllAction);
+    m_algoToolBar->addSeparator();
+    m_algoToolBar->addAction(m_startStepAction);
+    m_algoToolBar->addAction(m_stepAction);
+    m_algoToolBar->addAction(m_stopStepAction);
+
+    // панель результатов: комбобокс + кнопки переключения
+    m_resultToolBar = addToolBar("Результаты");
+    m_routeCombo = new QComboBox(this);
+    m_routeCombo->setMinimumWidth(250);
+    m_routeCombo->setEnabled(false);
+    connect(m_routeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainWindow::onRouteComboChanged);
+    m_resultToolBar->addWidget(m_routeCombo);
+    m_resultToolBar->addAction(m_prevRouteAction);
+    m_resultToolBar->addAction(m_nextRouteAction);
+}
+
+void MainWindow::createDockWidgets() // создание док-виджета «Дерево решений»
+{
+    m_logDock = new QDockWidget("Дерево решений", this);
+    m_treeWidget = new QTreeWidget;
+    m_treeWidget->setHeaderLabels({"Описание", "H", "Статус"});
+    connect(m_treeWidget, &QTreeWidget::itemClicked, this, &MainWindow::onTreeItemClicked);
+    m_logDock->setWidget(m_treeWidget);
+    addDockWidget(Qt::RightDockWidgetArea, m_logDock);
+}
+
+// слоты редактирования
+void MainWindow::setModeSelect() { m_scene->setMode(GraphScene::Select); }
+void MainWindow::setModeAddVertex() { m_scene->setMode(GraphScene::AddVertex); }
+void MainWindow::setModeAddEdge() { m_scene->setMode(GraphScene::AddEdge); }
+void MainWindow::deleteSelected() { m_scene->removeSelected(); }
+void MainWindow::clearGraph() {
+    m_scene->clearAll();
+    m_optimalRoutes.clear();
+    m_treeWidget->clear();
+    m_routeCombo->clear();
+    m_routeCombo->setEnabled(false);
+    m_prevRouteAction->setEnabled(false);
+    m_nextRouteAction->setEnabled(false);
+    m_statusLabel->setText("Граф очищен");
+}
+
+void MainWindow::loadExample() { // загрузка примера (6 вершин)
+    clearGraph();
+    QVector<QPointF> positions = {
+        QPointF(50, 50), QPointF(250, 50), QPointF(450, 150),
+        QPointF(550, 400), QPointF(250, 500), QPointF(50, 350)
+    };
+    int n = 6;
+    int mat[6][6] = {
+        {TspSolver::INF, 2, 4, 7, TspSolver::INF, 3},
+        {2, TspSolver::INF, 2, TspSolver::INF, 5, 3},
+        {4, 2, TspSolver::INF, 3, 4, TspSolver::INF},
+        {7, TspSolver::INF, 3, TspSolver::INF, 3, 5},
+        {TspSolver::INF, 5, 4, 3, TspSolver::INF, 3},
+        {3, 3, TspSolver::INF, 5, 3, TspSolver::INF}
+    };
+    for (int i = 0; i < n; ++i)
+        m_scene->addVertex(positions[i], QString::number(i));
+    for (int i = 0; i < n; ++i)
+        for (int j = i+1; j < n; ++j)
+            if (mat[i][j] != TspSolver::INF)
+                m_scene->addEdge(i, j, mat[i][j]);
+    m_statusLabel->setText("Загружен пример");
+}
+
+void MainWindow::importMatrix() { // импорт матрицы
+    MatrixDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        auto [mat, pos] = dialog.getData();
+        clearGraph();
+        int n = static_cast<int>(mat.size());
+        if (pos.isEmpty())
+            for (int i = 0; i < n; ++i)
+                m_scene->addVertex(QPointF(rand() % 500 + 50, rand() % 400 + 50),
+                                   QString::number(i));
+        else
+            for (int i = 0; i < n; ++i)
+                m_scene->addVertex(pos[i], QString::number(i));
+        for (int i = 0; i < n; ++i)
+            for (int j = i+1; j < n; ++j)
+                if (mat[i][j] != TspSolver::INF)
+                    m_scene->addEdge(i, j, mat[i][j]);
+        m_statusLabel->setText("Матрица импортирована");
+    }
+}
+
+void MainWindow::exportMatrix() { // экспорт матрицы
+    auto mat = m_scene->toMatrix();
+    if (mat.empty()) {
+        QMessageBox::warning(this, "Экспорт", "Граф пуст");
+        return;
+    }
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить матрицу", "",
+                                                    "Text files (*.txt)");
+    if (fileName.isEmpty()) return;
+    QFile file(fileName);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&file);
+        int n = static_cast<int>(mat.size());
+        out << n << "\n";
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if (mat[i][j] == TspSolver::INF) out << -1 << " ";
+                else out << mat[i][j] << " ";
+            }
+            out << "\n";
+        }
+        m_statusLabel->setText("Матрица экспортирована");
+    }
+}
+
+void MainWindow::generateRandomGraph() { // генерация случайного графа
+    bool ok;
+    int n = QInputDialog::getInt(this, "Случайный граф",
+                                 "Количество вершин (4–15):", 6, 4, 15, 1, &ok);
+    if (!ok) return;
+
+    int minW = QInputDialog::getInt(this, "Веса", "Минимальный вес:", 1, 1, 100, 1, &ok);
+    if (!ok) return;
+    int maxW = QInputDialog::getInt(this, "Веса", "Максимальный вес:", 10, minW, 100, 1, &ok);
+    if (!ok) return;
+
+    int prob = QInputDialog::getInt(this, "Плотность", "Вероятность ребра (%):", 70, 10, 100, 1, &ok);
+    if (!ok) return;
+
+    std::vector<std::vector<int>> mat(n, std::vector<int>(n, TspSolver::INF));
+    std::srand(std::time(nullptr));
+    for (int i = 0; i < n; ++i) {
+        for (int j = i+1; j < n; ++j) {
+            if (std::rand() % 100 < prob) {
+                int w = minW + std::rand() % (maxW - minW + 1);
+                mat[i][j] = mat[j][i] = w;
+            }
+        }
+    }
+
+    clearGraph();
+    for (int i = 0; i < n; ++i) {
+        qreal x = 50 + std::rand() % 700;
+        qreal y = 50 + std::rand() % 500;
+        m_scene->addVertex(QPointF(x, y), QString::number(i));
+    }
+    for (int i = 0; i < n; ++i)
+        for (int j = i+1; j < n; ++j)
+            if (mat[i][j] != TspSolver::INF)
+                m_scene->addEdge(i, j, mat[i][j]);
+
+    m_statusLabel->setText(QString("Случайный граф из %1 вершин").arg(n));
+}
+
+// поиск оптимальных маршрутов
+void MainWindow::findFirstOptimal() {
+    auto mat = m_scene->toMatrix();
+    if (mat.size() < 3) {
+        QMessageBox::warning(this, "Ошибка", "Граф должен содержать хотя бы 3 вершины");
+        return;
+    }
+    m_solver = TspSolver(mat);
+    m_solver.setFindAll(false);
+    auto [cost, paths] = m_solver.solve();
+    m_optimalRoutes.clear();
+    for (const auto &p : paths) m_optimalRoutes.push_back(p);
+    m_treeWidget->clear();
+
+    m_routeCombo->clear();
+    m_routeCombo->setEnabled(false);
+    m_prevRouteAction->setEnabled(false);
+    m_nextRouteAction->setEnabled(false);
+
+    if (m_optimalRoutes.empty()) {
+        addTreeItem("Нет решения", -1, "Ошибка");
+        m_statusLabel->setText("Нет решения");
+        return;
+    }
+    m_currentRouteIndex = 0;
+    addTreeItem(QString("H=%1").arg(m_solver.getRootLowerBound()), m_solver.getRootLowerBound(), "Корень");
+    QString routeStr = routeToString(m_optimalRoutes[0]);
+    addTreeItem(QString("Цикл: %1").arg(routeStr), cost, "Оптимум");
+    m_statusLabel->setText(QString("Оптимум: стоимость %1, маршрут %2").arg(cost).arg(routeStr));
+    updateRouteHighlight();
+}
+
+void MainWindow::findAllOptimal() {
+    auto mat = m_scene->toMatrix();
+    if (mat.size() < 3) {
+        QMessageBox::warning(this, "Ошибка", "Граф должен содержать хотя бы 3 вершины");
+        return;
+    }
+    m_solver = TspSolver(mat);
+    m_solver.setFindAll(true);
+    auto [cost, paths] = m_solver.solve();
+    m_optimalRoutes.clear();
+    for (const auto &p : paths) m_optimalRoutes.push_back(p);
+    m_treeWidget->clear();
+
+    if (m_optimalRoutes.empty()) {
+        m_routeCombo->clear();
+        m_routeCombo->setEnabled(false);
+        m_prevRouteAction->setEnabled(false);
+        m_nextRouteAction->setEnabled(false);
+        addTreeItem("Нет решения", -1, "Ошибка");
+        m_statusLabel->setText("Нет решения");
+        return;
+    }
+
+    addTreeItem(QString("H=%1").arg(m_solver.getRootLowerBound()), m_solver.getRootLowerBound(), "Корень");
+    for (int i = 0; i < (int)m_optimalRoutes.size(); ++i) {
+        QString routeStr = routeToString(m_optimalRoutes[i]);
+        addTreeItem(QString("Цикл %1: %2").arg(i+1).arg(routeStr), cost, "Оптимум");
+    }
+
+    rebuildRouteCombo();
+    bool multiple = m_optimalRoutes.size() > 1;
+    m_routeCombo->setEnabled(true);
+    m_prevRouteAction->setEnabled(multiple);
+    m_nextRouteAction->setEnabled(multiple);
+
+    m_currentRouteIndex = 0;
+    m_routeCombo->setCurrentIndex(0);
+    updateRouteHighlight();
+
+    m_statusLabel->setText(QString("Найдено %1 оптимальных маршрутов стоимостью %2. "
+                                   "Переключайте через список или стрелки.")
+                               .arg(m_optimalRoutes.size()).arg(cost));
+}
+// вспомогательные методы интерфейса
+void MainWindow::rebuildRouteCombo() {
+    m_routeCombo->blockSignals(true);
+    m_routeCombo->clear();
+    for (int i = 0; i < (int)m_optimalRoutes.size(); ++i) {
+        QString routeStr = routeToString(m_optimalRoutes[i]);
+        m_routeCombo->addItem(QString("Маршрут %1: %2").arg(i+1).arg(routeStr));
+    }
+    m_routeCombo->blockSignals(false);
+}
+
+void MainWindow::onRouteComboChanged(int index) {
+    if (index < 0 || index >= (int)m_optimalRoutes.size()) return;
+    if (index == m_currentRouteIndex) return;
+    m_currentRouteIndex = index;
+    updateRouteHighlight();
+}
+
+void MainWindow::onTreeItemClicked(QTreeWidgetItem *item, int /*column*/) {
+    QString text = item->text(0);
+    if (text.startsWith("Цикл ")) {
+        QRegularExpression re("^Цикл (\\d+):");
+        auto match = re.match(text);
+        if (match.hasMatch()) {
+            int cycleIndex = match.captured(1).toInt() - 1;
+            if (cycleIndex >= 0 && cycleIndex < (int)m_optimalRoutes.size()) {
+                m_currentRouteIndex = cycleIndex;
+                m_routeCombo->setCurrentIndex(cycleIndex);
+                updateRouteHighlight();
+            }
+        }
+    }
+}
+// сброс цветов, подсветка рёбер текущего маршрута красным
+void MainWindow::updateRouteHighlight() {
+    if (m_currentRouteIndex < 0 || m_currentRouteIndex >= (int)m_optimalRoutes.size()) return;
+    const auto &route = m_optimalRoutes[m_currentRouteIndex];
+    m_scene->resetEdgeColors();
+    for (auto *edge : m_scene->edges()) edge->setHighlight(false);
+    int n = (int)route.size();
+    for (int i = 0; i < n; ++i) {
+        int from = route[i];
+        int to = route[(i+1)%n];
+        auto *edge = m_scene->findEdge(from, to);
+        if (edge) edge->setHighlight(true);
+    }
+    m_statusLabel->setText(QString("Маршрут %1/%2: %3")
+                               .arg(m_currentRouteIndex+1).arg(m_optimalRoutes.size())
+                               .arg(routeToString(route)));
+}
+
+void MainWindow::previousRoute() {
+    if (m_optimalRoutes.empty()) return;
+    int total = (int)m_optimalRoutes.size();
+    m_currentRouteIndex = (m_currentRouteIndex - 1 + total) % total;
+    m_routeCombo->setCurrentIndex(m_currentRouteIndex);
+    updateRouteHighlight();
+}
+
+void MainWindow::nextRoute() {
+    if (m_optimalRoutes.empty()) return;
+    int total = (int)m_optimalRoutes.size();
+    m_currentRouteIndex = (m_currentRouteIndex + 1) % total;
+    m_routeCombo->setCurrentIndex(m_currentRouteIndex);
+    updateRouteHighlight();
+}
+
+QString MainWindow::routeToString(const std::vector<int> &route) { // превращает вектор индексов в строку вида "0-5-4-3-2-1-0"
+    QStringList lst;
+    for (int v : route) {
+        if (v >= 0 && v < m_scene->vertices().size())
+            lst << m_scene->vertices()[v]->name();
+        else
+            lst << QString::number(v);
+    }
+    return lst.join("-");
+}
+
+void MainWindow::addTreeItem(const QString &desc, int h, const QString &status) {
+    auto *item = new QTreeWidgetItem(m_treeWidget);
+    item->setText(0, desc);
+    item->setText(1, h < 0 ? "" : QString::number(h));
+    item->setText(2, status);
+}
+
+// пошаговый режим
+void MainWindow::startStepByStep() {
+    auto mat = m_scene->toMatrix();
+    if (mat.size() < 3) {
+        QMessageBox::warning(this, "Ошибка", "Граф должен содержать хотя бы 3 вершины");
+        return;
+    }
+    m_solver = TspSolver(mat);
+    m_solver.setFindAll(false);
+    m_solver.solve();
+    m_currentStep = 0;
+    m_stepByStepActive = true;
+    m_includedEdges.clear();
+    m_currentConsiderEdge = {-1, -1};
+    m_scene->resetEdgeColors();
+    m_stopStepAction->setEnabled(true);
+    m_stepAction->setEnabled(true);
+    m_treeWidget->clear();
+    addTreeItem("Пошаговый разбор", m_solver.getRootLowerBound(), "Старт");
+    m_statusLabel->setText("Пошаговый режим. Нажмите «Шаг»");
+}
+
+void MainWindow::stepNext() {
+    if (!m_stepByStepActive) return;
+    const auto &steps = m_solver.steps();
+    if (m_currentStep >= (int)steps.size()) {
+        m_statusLabel->setText("Демонстрация завершена");
+        stopStepByStep();
+        return;
+    }
+    const TspSolver::Step &step = steps[m_currentStep];
+
+    QString status;
+    switch (step.type) {
+    case TspSolver::StepType::Consider:
+        m_currentConsiderEdge = {step.from, step.to};
+        status = "Рассматривается";
+        break;
+    case TspSolver::StepType::Include:
+        m_includedEdges.push_back({step.from, step.to});
+        m_currentConsiderEdge = {-1, -1};
+        status = "Включено";
+        break;
+    case TspSolver::StepType::Exclude:
+        m_currentConsiderEdge = {-1, -1};
+        status = "Исключено";
+        break;
+    }
+
+    updateStepVisualization();
+
+    QString actionText;
+    switch (step.type) {
+    case TspSolver::StepType::Consider:
+        actionText = QString("Рассм. (%1,%2)").arg(step.from).arg(step.to);
+        break;
+    case TspSolver::StepType::Include:
+        actionText = QString("Вкл. (%1,%2)").arg(step.from).arg(step.to);
+        break;
+    case TspSolver::StepType::Exclude:
+        actionText = QString("Искл. (%1,%2)").arg(step.from).arg(step.to);
+        break;
+    }
+
+    QTreeWidgetItem *item = new QTreeWidgetItem(m_treeWidget);
+    item->setText(0, actionText);
+    item->setText(1, QString::number(step.lowerBound));
+    item->setText(2, status);
+    m_treeWidget->addTopLevelItem(item);
+
+    if (step.type == TspSolver::StepType::Consider && !step.zeros.empty()) {
+        for (const auto &z : step.zeros) {
+            int vFrom = z.first.first;
+            int vTo   = z.first.second;
+            int pen   = z.second;
+            QString zeroDesc = QString("  Ноль (%1,%2): штраф %3")
+                                   .arg(vFrom).arg(vTo).arg(pen);
+            QTreeWidgetItem *zeroItem = new QTreeWidgetItem(item);
+            zeroItem->setText(0, zeroDesc);
+        }
+        item->setExpanded(true);
+    }
+
+    m_treeWidget->scrollToBottom();
+    m_statusLabel->setText(QString("Шаг %1: %2 (H=%3)")
+                               .arg(m_currentStep).arg(actionText).arg(step.lowerBound));
+    m_currentStep++;
+}
+
+void MainWindow::stopStepByStep() {
+    m_stepByStepActive = false;
+    m_stopStepAction->setEnabled(false);
+    m_stepAction->setEnabled(false);
+    m_currentStep = -1;
+    m_statusLabel->setText("Пошаговый режим остановлен");
+}
+
+void MainWindow::updateStepVisualization() { // зелёные – включённые рёбра, жёлтое – рассматриваемое
+    m_scene->resetEdgeColors();
+    for (const auto &e : m_includedEdges) {
+        EdgeItem *edge = m_scene->findEdge(e.first, e.second);
+        if (edge) edge->setColor(Qt::green, 3);
+    }
+    if (m_currentConsiderEdge.first != -1) {
+        EdgeItem *edge = m_scene->findEdge(m_currentConsiderEdge.first,
+                                           m_currentConsiderEdge.second);
+        if (edge) edge->setColor(Qt::yellow, 3);
+    }
+}
+
+
+
+
+
+
+
+#include "matrixdialog.h"
+#include <QVBoxLayout>
+#include <QLabel>
+
+MatrixDialog::MatrixDialog(QWidget *parent) : QDialog(parent)
+{
+    setWindowTitle("Ввод матрицы смежности");
+
+    auto *layout = new QVBoxLayout(this);
+
+    // верхняя часть: выбор количества вершин
+    auto *sizeLayout = new QHBoxLayout();
+    sizeLayout->addWidget(new QLabel("Число вершин:"));
+    m_sizeSpin = new QSpinBox;
+    m_sizeSpin->setRange(2, 50); // от 2 до 50 вершин
+    m_sizeSpin->setValue(6); // по умолчанию 6
+    connect(m_sizeSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &MatrixDialog::onSizeChanged);
+    sizeLayout->addWidget(m_sizeSpin);
+    layout->addLayout(sizeLayout);
+
+    // таблица для ввода весов
+    m_table = new QTableWidget(6, 6);
+    m_table->setHorizontalHeaderLabels({"0","1","2","3","4","5"});
+    m_table->setVerticalHeaderLabels({"0","1","2","3","4","5"});
+    layout->addWidget(m_table);
+
+    // ккнопки OK / Cancel
+    m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    connect(m_buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    layout->addWidget(m_buttons);
+
+    onSizeChanged(6); // инициализация таблицы для начального размера
+}
+
+void MatrixDialog::onSizeChanged(int n) {
+    // изменяем размер таблицы
+    m_table->setRowCount(n);
+    m_table->setColumnCount(n);
+
+    // обновляем заголовки строк и столбцов (0..n-1)
+    QStringList headers;
+    for (int i = 0; i < n; ++i) headers << QString::number(i);
+    m_table->setHorizontalHeaderLabels(headers);
+    m_table->setVerticalHeaderLabels(headers);
+
+    // для всех ячеек: если ячейки ещё нет – создаём, диагональ заполняем "INF"
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            auto *item = m_table->item(i, j);
+            if (!item) {
+                item = new QTableWidgetItem();
+                m_table->setItem(i, j, item);
+            }
+            if (i == j) item->setText("INF");
+        }
+    }
+}
+
+std::pair<std::vector<std::vector<int>>, QVector<QPointF>> MatrixDialog::getData() const {
+    int n = m_sizeSpin->value();
+    std::vector<std::vector<int>> mat(n, std::vector<int>(n, TspSolver::INF));
+
+    // считываем значения из таблицы
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            QString text = m_table->item(i, j)->text().trimmed().toUpper();
+            if (text == "INF" || text.isEmpty())
+                mat[i][j] = TspSolver::INF; // отсутствие ребра
+            else
+                mat[i][j] = text.toInt(); // вес ребра
+        }
+    }
+
+    return {mat, {}}; // позиции вершин не заданы – сцена распределит их случайно
+}
+
+
+
+
+
+
+#include "tspsolver.h"
+#include <algorithm>
+#include <limits>
+
+// поиск минимального элемента в строке r (игнорируя бесконечности)
+static int rowMin(const std::vector<std::vector<int>> &mat, int r) {
+    int best = TspSolver::INF;
+    for (int x : mat[r]) best = std::min(best, x);
+    return best;
+}
+
+// поиск минимального элемента в столбце c
+static int colMin(const std::vector<std::vector<int>> &mat, int c) {
+    int best = TspSolver::INF;
+    for (const auto &row : mat) best = std::min(best, row[c]);
+    return best;
+}
+
+TspSolver::TspSolver(const std::vector<std::vector<int>> &costMatrix)
+    : m_original(costMatrix), m_n(static_cast<int>(costMatrix.size()))
+{
+    m_rootLowerBound = 0;
+}
+
+// приведение матрицы: вычитаем минимумы строк и столбцов, возвращаем сумму вычетов
+int TspSolver::reduceMatrix(std::vector<std::vector<int>> &mat) {
+    int n = static_cast<int>(mat.size());
+    int total = 0;
+
+    // редукция строк
+    for (int i = 0; i < n; ++i) {
+        int mn = rowMin(mat, i);
+        if (mn == INF) continue; // вся строка – INF, недопустимый узел
+        if (mn > 0) {
+            for (int j = 0; j < n; ++j)
+                if (mat[i][j] != INF) mat[i][j] -= mn;
+            total += mn;
+        }
+    }
+    // редукция столбцов
+    for (int j = 0; j < n; ++j) {
+        int mn = colMin(mat, j);
+        if (mn == INF) continue;
+        if (mn > 0) {
+            for (int i = 0; i < n; ++i)
+                if (mat[i][j] != INF) mat[i][j] -= mn;
+            total += mn;
+        }
+    }
+    return total;
+}
+
+// выбор нулевой клетки с максимальным штрафом
+std::pair<int,int> TspSolver::selectBestZero(const std::vector<std::vector<int>> &mat) {
+    int n = static_cast<int>(mat.size());
+    int bestPenalty = -1;
+    std::pair<int,int> bestPos = {-1, -1};
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            if (mat[i][j] != 0) continue;
+
+            // штраф = мин. в строке (кроме j) + мин. в столбце (кроме i)
+            int rmin = INF, cmin = INF;
+            for (int k = 0; k < n; ++k) if (k != j) rmin = std::min(rmin, mat[i][k]);
+            for (int k = 0; k < n; ++k) if (k != i) cmin = std::min(cmin, mat[k][j]);
+            int penalty = (rmin == INF ? 0 : rmin) + (cmin == INF ? 0 : cmin);
+
+            if (penalty > bestPenalty) {
+                bestPenalty = penalty;
+                bestPos = {i, j};
+            }
+        }
+    }
+    return bestPos;
+}
+
+// получить список всех нулей текущей матрицы с исходными вершинами и штрафами
+std::vector<std::pair<std::pair<int,int>, int>> TspSolver::getAllZeros(const Node &node) const {
+    std::vector<std::pair<std::pair<int,int>, int>> result;
+    int n = static_cast<int>(node.matrix.size());
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            if (node.matrix[i][j] != 0) continue;
+
+            int rmin = INF, cmin = INF;
+            for (int k = 0; k < n; ++k) if (k != j) rmin = std::min(rmin, node.matrix[i][k]);
+            for (int k = 0; k < n; ++k) if (k != i) cmin = std::min(cmin, node.matrix[k][j]);
+            int penalty = (rmin == INF ? 0 : rmin) + (cmin == INF ? 0 : cmin);
+
+            // восстанавливаем исходные номера вершин по rowVertices/colVertices
+            int origFrom = node.rowVertices[i];
+            int origTo   = node.colVertices[j];
+            result.push_back({{origFrom, origTo}, penalty});
+        }
+    }
+    return result;
+}
+
+// восстановление гамильтонова цикла по списку включённых рёбер
+std::vector<int> TspSolver::buildPath(const std::vector<std::pair<int,int>> &edges) const {
+    std::vector<std::vector<int>> adj(m_n);
+    for (const auto &e : edges) {
+        adj[e.first].push_back(e.second);
+        adj[e.second].push_back(e.first);
+    }
+
+    std::vector<int> path;
+    int start = 0;
+    while (start < m_n && adj[start].empty()) ++start; // первая вершина с рёбрами
+    if (start == m_n) return path; // нет рёбер (не должно случиться)
+
+    int cur = start, prev = -1;
+    for (int i = 0; i < m_n; ++i) {
+        path.push_back(cur);
+        if (i == m_n - 1) break;
+        bool moved = false;
+        for (int nxt : adj[cur]) {
+            if (nxt != prev) {
+                prev = cur;
+                cur = nxt;
+                moved = true;
+                break;
+            }
+        }
+        if (!moved) return {}; // не удалось продолжить – ошибка в данных
+    }
+    return path;
+}
+
+// основная процедура – поиск оптимального маршрута методом ветвей и границ
+std::pair<int, std::vector<std::vector<int>>> TspSolver::solve() {
+    std::vector<std::vector<int>> bestPaths;
+    int bestCost = INF;
+    m_steps.clear();
+
+    // корневой узел: полная матрица
+    Node root;
+    root.matrix = m_original;
+    for (int i = 0; i < m_n; ++i) root.matrix[i][i] = INF; // запрет петель
+    root.rowVertices.resize(m_n);
+    root.colVertices.resize(m_n);
+    for (int i = 0; i < m_n; ++i) {
+        root.rowVertices[i] = i;
+        root.colVertices[i] = i;
+    }
+    root.lowerBound = reduceMatrix(root.matrix);
+    m_rootLowerBound = root.lowerBound;
+    root.level = 0;
+
+    // первый шаг для демонстрации: все нули исходной приведённой матрицы
+    {
+        Step startStep;
+        startStep.level = 0;
+        startStep.lowerBound = root.lowerBound;
+        startStep.from = -1;
+        startStep.to = -1;
+        startStep.type = StepType::Consider;
+        startStep.zeros = getAllZeros(root);
+        m_steps.push_back(startStep);
+    }
+
+    // очередь с приоритетом по нижней границе (меньше – лучше)
+    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> pq;
+    pq.push(root);
+
+    while (!pq.empty()) {
+        Node cur = pq.top(); pq.pop();
+
+        if (cur.lowerBound > bestCost) continue; // отсечение бесперспективных узлов
+
+        int size = static_cast<int>(cur.matrix.size());
+
+        // матрица 1×1 – завершаем цикл добавлением единственного ребра
+        if (size == 1) {
+            if (cur.matrix[0][0] == INF) continue;
+            int origFrom = cur.rowVertices[0];
+            int origTo   = cur.colVertices[0];
+            Node finalNode = cur;
+            finalNode.edges.emplace_back(origFrom, origTo);
+            int totalCost = cur.lowerBound + cur.matrix[0][0];
+            if (totalCost < bestCost) {
+                bestCost = totalCost;
+                bestPaths.clear();
+                bestPaths.push_back(buildPath(finalNode.edges));
+                if (!m_findAll) break;
+            } else if (totalCost == bestCost && m_findAll) {
+                bestPaths.push_back(buildPath(finalNode.edges));
+            }
+            continue;
+        }
+
+        // выбираем нулевую клетку с максимальным штрафом
+        auto [r, c] = selectBestZero(cur.matrix);
+        if (r == -1) continue;   // нет нулей – ветвь тупиковая
+
+        int origFrom = cur.rowVertices[r];
+        int origTo   = cur.colVertices[c];
+
+        // сохраняем шаг "Рассматриваем" для пошаговой демонстрации
+        {
+            Step considerStep;
+            considerStep.level = cur.level;
+            considerStep.lowerBound = cur.lowerBound;
+            considerStep.from = origFrom;
+            considerStep.to = origTo;
+            considerStep.type = StepType::Consider;
+            considerStep.zeros = getAllZeros(cur);
+            m_steps.push_back(considerStep);
+        }
+
+        // ветвь «Включить ребро»
+        Node incNode = cur;
+        incNode.edges.emplace_back(origFrom, origTo);
+        std::vector<std::vector<int>> newMat(size-1, std::vector<int>(size-1));
+        std::vector<int> newRowVert, newColVert;
+
+        // удаляем строку r и столбец c из матрицы и списков вершин
+        for (int i = 0; i < size; ++i) {
+            if (i == r) continue;
+            newRowVert.push_back(incNode.rowVertices[i]);
+            std::vector<int> newRow;
+            for (int j = 0; j < size; ++j) {
+                if (j == c) continue;
+                newRow.push_back(incNode.matrix[i][j]);
+            }
+            newMat[newRowVert.size()-1] = newRow;
+        }
+        for (int j = 0; j < size; ++j) {
+            if (j == c) continue;
+            newColVert.push_back(incNode.colVertices[j]);
+        }
+        incNode.matrix = std::move(newMat);
+        incNode.rowVertices = std::move(newRowVert);
+        incNode.colVertices = std::move(newColVert);
+
+        // запрет обратного ребра (origTo, origFrom), если ещё присутствует
+        for (int i = 0; i < size-1; ++i)
+            for (int j = 0; j < size-1; ++j)
+                if (incNode.rowVertices[i] == origTo && incNode.colVertices[j] == origFrom)
+                    incNode.matrix[i][j] = INF;
+
+        int addInc = reduceMatrix(incNode.matrix);
+        incNode.lowerBound = cur.lowerBound + addInc;
+        incNode.level = cur.level + 1;
+
+        {
+            Step incStep;
+            incStep.level = incNode.level;
+            incStep.lowerBound = incNode.lowerBound;
+            incStep.from = origFrom;
+            incStep.to = origTo;
+            incStep.type = StepType::Include;
+            m_steps.push_back(incStep);
+        }
+        if (incNode.lowerBound <= bestCost) pq.push(incNode);
+
+        // ветвь «Запретить ребро»
+        Node excNode = cur;
+        excNode.matrix[r][c] = INF;
+        int addExc = reduceMatrix(excNode.matrix);
+        excNode.lowerBound = cur.lowerBound + addExc;
+        excNode.level = cur.level + 1;
+
+        {
+            Step excStep;
+            excStep.level = excNode.level;
+            excStep.lowerBound = excNode.lowerBound;
+            excStep.from = origFrom;
+            excStep.to = origTo;
+            excStep.type = StepType::Exclude;
+            m_steps.push_back(excStep);
+        }
+        if (excNode.lowerBound <= bestCost) pq.push(excNode);
+    }
+
+    if (bestPaths.empty()) return {INF, {}};
+    return {bestCost, bestPaths};
+}
+
+
+
+
+
+#include "vertexitem.h"
+#include "graphscene.h"
+#include <QPainter>
+#include <QFont>
+
+VertexItem::VertexItem(int index, const QString &name, const QPointF &pos,
+                       GraphScene *scene, QGraphicsItem *parent)
+    : QGraphicsEllipseItem(-RADIUS, -RADIUS, 2*RADIUS, 2*RADIUS, parent), // эллипс размером 2*RADIUS
+    m_index(index), m_name(name), m_scene(scene)
+{
+    setPos(pos); // устанавливаем позицию на сцене
+    setFlag(QGraphicsItem::ItemIsMovable); // разрешаем перетаскивание
+    setFlag(QGraphicsItem::ItemIsSelectable); // разрешаем выделение
+    setFlag(QGraphicsItem::ItemSendsGeometryChanges); // уведомления об изменении позиции
+    setBrush(QColor(200, 230, 255)); // светло-голубая заливка
+    setPen(QPen(Qt::blue, 2.5)); // синяя обводка
+    setZValue(1); // вершины отрисовываются поверх рёбер
+
+    m_label = new QGraphicsSimpleTextItem(m_name, this); // текст внутри круга
+    m_label->setFont(QFont("Arial", 12, QFont::Bold)); // жирный шрифт
+    m_label->setBrush(Qt::black); // чёрный цвет текста
+    updateLabelPosition(); // центрируем подпись
+}
+
+int VertexItem::index() const { return m_index; }
+void VertexItem::setIndex(int idx) {
+    m_index = idx;
+    // имя остаётся прежним
+}
+
+QString VertexItem::name() const { return m_name; }
+
+void VertexItem::setHighlight(bool on) {
+    m_highlight = on;
+    // при подсветке — красная обводка, иначе синяя
+    setPen(on ? QPen(Qt::red, 3.5) : QPen(Qt::blue, 2.5));
+}
+
+QVariant VertexItem::itemChange(GraphicsItemChange change, const QVariant &value) {
+    if (change == ItemPositionHasChanged) {
+        // когда вершину перетащили, сообщаем сцене обновить связанные рёбра
+        if (m_scene)
+            m_scene->vertexMoved(m_index, value.toPointF());
+    }
+    return QGraphicsEllipseItem::itemChange(change, value);
+}
+
+void VertexItem::updateLabelPosition() {
+    // центрируем текст внутри круга
+    QRectF textRect = m_label->boundingRect();
+    m_label->setPos(-textRect.width()/2, -textRect.height()/2);
+}
