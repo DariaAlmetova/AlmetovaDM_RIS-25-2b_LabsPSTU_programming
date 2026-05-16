@@ -1,0 +1,1541 @@
+#ifndef GRAPH_H
+#define GRAPH_H
+
+#include <vector>
+#include <QString>
+#include <queue>
+#include <memory>
+
+// Предварительное объявление абстрактного хранилища
+class GraphStorage;
+
+// Тип хранилища графа
+enum class StorageType {
+    AdjacencyMatrix, // Матрица смежности
+    AdjacencyList // Список смежности
+};
+
+// Основной класс графа, предоставляющий интерфейс для работы с моделью. Делегирует все операции текущему хранилищу (GraphStorage), что позволяет переключать способ хранения во время выполнения.
+
+class Graph {
+public:
+    Graph();
+    ~Graph();
+
+    // Переключить способ хранения (с сохранением данных)
+    void setStorageType(StorageType type);
+    StorageType storageType() const;
+
+    // Редактирование вершин
+    void addNode(const QString &name = ""); // Добавить вершину с именем
+    void removeNode(int index); // Удалить вершину по индексу
+
+    // Редактирование рёбер (ориентированный граф)
+    void addEdge(int from, int to, int weight); // Добавить/обновить ребро
+    void removeEdge(int from, int to); // Удалить одно направление
+    void setWeight(int from, int to, int weight); // Изменить вес (аналог addEdge)
+    int getWeight(int from, int to) const; // Получить вес ребра или -1
+    int getNodeIndex(const QString& name) const; // Найти индекс вершины по имени
+
+    // Алгоритмы на графе
+    std::vector<int> dfs(int start) const; // Обход в глубину
+    std::vector<int> bfs(int start) const; // Обход в ширину
+    std::pair<std::vector<int>, std::vector<int>> dijkstra(int start) const; // Кратчайшие пути от start
+    std::vector<std::vector<int>> floyd() const; // Все пары кратчайших путей
+
+    // Информация о графе
+    size_t nodeCount() const; // Количество вершин
+    const std::vector<QString>& nodeNames() const; // Имена вершин
+
+private:
+    std::unique_ptr<GraphStorage> storage_; // Активное хранилище (матрица или список)
+};
+
+// Абстрактный интерфейс хранилища графа.
+// Определяет чисто виртуальные методы для всех операций с графом.
+// Конкретные реализации: AdjMatrixStorage, AdjListStorage.
+
+class GraphStorage {
+public:
+    virtual ~GraphStorage() = default;
+
+    virtual void addNode(const QString& name) = 0;
+    virtual void removeNode(int index) = 0;
+    virtual void addEdge(int from, int to, int weight) = 0;
+    virtual void removeEdge(int from, int to) = 0;
+    virtual int getWeight(int from, int to) const = 0;
+    virtual int getNodeIndex(const QString& name) const = 0;
+    virtual size_t nodeCount() const = 0;
+    virtual const std::vector<QString>& nodeNames() const = 0;
+
+    // Вспомогательная структура для экспорта данных при смене хранилища
+    struct GraphData {
+        std::vector<QString> names;
+        struct Edge { int from, to, weight; };
+        std::vector<Edge> edges;
+    };
+    virtual GraphData exportData() const = 0; // Сериализовать текущие вершины и рёбра
+};
+
+// Хранилище на основе матрицы смежности.
+// Подходит для плотных графов. Для каждой пары (i, j) хранит вес ребра или -1.
+
+class AdjMatrixStorage : public GraphStorage {
+public:
+    void addNode(const QString& name) override;
+    void removeNode(int index) override;
+    void addEdge(int from, int to, int weight) override;
+    void removeEdge(int from, int to) override;
+    int getWeight(int from, int to) const override;
+    int getNodeIndex(const QString& name) const override;
+    size_t nodeCount() const override;
+    const std::vector<QString>& nodeNames() const override;
+    GraphData exportData() const override;
+
+private:
+    std::vector<std::vector<int>> adjMatrix; // -1 = нет ребра
+    std::vector<QString> names; // Имена вершин
+};
+
+// Хранилище на основе списка смежности.
+// Подходит для разреженных графов. Для каждой вершины хранит список пар (сосед, вес).
+
+class AdjListStorage : public GraphStorage {
+public:
+    void addNode(const QString& name) override;
+    void removeNode(int index) override;
+    void addEdge(int from, int to, int weight) override;
+    void removeEdge(int from, int to) override;
+    int getWeight(int from, int to) const override;
+    int getNodeIndex(const QString& name) const override;
+    size_t nodeCount() const override;
+    const std::vector<QString>& nodeNames() const override;
+    GraphData exportData() const override;
+
+private:
+    std::vector<std::vector<std::pair<int, int>>> adjList; // Для каждой вершины список (сосед, вес)
+    std::vector<QString> names;
+};
+
+#endif
+
+
+
+
+
+
+
+
+#ifndef GRAPHVISUALS_H
+#define GRAPHVISUALS_H
+
+#include <QGraphicsScene>
+#include <QGraphicsView>
+#include <vector>
+#include <QPointF>
+#include "graph.h"
+
+// Класс GraphVisuals – отвечает за визуализацию графа на сцене QGraphicsScene.
+// Хранит координаты вершин, умеет рисовать весь граф, отдельные шаги алгоритмов
+
+class GraphVisuals
+{
+public:
+    GraphVisuals(QGraphicsScene *scene, QGraphicsView *view, Graph *graph);
+
+    // Полная перерисовка графа в базовом виде
+    void redraw();
+
+    // Визуализация одного шага алгоритма: подсвечивает указанные вершины и рёбра
+    void visualizeStep(const std::vector<int>& vertices,
+                       const std::vector<std::pair<int,int>>& edges);
+
+    // Расстановка вершин по кругу
+    void assignCircularPositions();
+
+    // Подгонка сцены под размеры виджета
+    void fitToView();
+
+private:
+    void drawBaseGraph(); // Рисует вершины и все рёбра без подсветки (обычное состояние)
+    void drawEdge(int from, int to, QColor color = Qt::black, int boldness = 2); // Рисует одно ребро со стрелкой и подписью
+
+    QGraphicsScene *scene; // Указатель на сцену, на которой всё отрисовывается
+    QGraphicsView *view; // Указатель на представление (для масштабирования)
+    Graph *graph; // Указатель на модель графа
+    std::vector<QPointF> positions; // Координаты центров вершин (в пикселях сцены)
+};
+
+#endif
+
+
+
+
+
+
+
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <QGraphicsScene>
+#include <QGraphicsView>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QRadioButton>
+#include <QGroupBox>
+#include <QTextEdit>
+#include <QLabel>
+#include <vector>
+#include <utility>
+#include "graph.h"
+#include "graphvisuals.h"
+
+// Структура одного шага алгоритма.
+// Хранит текстовое описание шага, список подсвечиваемых вершин и рёбер.
+
+struct AlgorithmStep {
+    QString description; // Текстовое описание текущего шага
+    std::vector<int> highlightedVertices; // Индексы вершин для подсветки (светло-розовым)
+    std::vector<std::pair<int,int>> highlightedEdges; // Рёбра для подсветки (красным)
+};
+
+// Главное окно приложения.
+// Содержит элементы управления для редактирования графа, кнопки запуска алгоритмов, навигации по шагам, а также сцену для визуализации.
+
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
+
+private slots:
+    // Слоты для редактирования графа
+    void onClearGraph(); // Очистить весь граф (удалить все вершины)
+    void onAddNode(); // Добавить новую вершину
+    void onRemoveNode(); // Удалить вершину
+    void onAddEdge(); // Добавить ребро (из полей Откуда/Куда/Вес)
+    void onRemoveEdge(); // Удалить ребро (из полей Откуда/Куда)
+    void onSetWeight(); // Изменить вес ребра (из полей Откуда/Куда/Вес)
+
+    // Слоты запуска алгоритмов (генерируют последовательность шагов)
+    void onStartDFS();
+    void onStartBFS();
+    void onStartDijkstra();
+    void onStartFloyd();
+
+    // Навигация по шагам
+    void onStepForward();
+    void onStepBackward();
+
+    void onLoadSampleGraph(); // Загрузить граф из задания
+
+private:
+    void setupUI(); // Создание и размещение всех виджетов
+    void updateVisuals(); // Обновить визуализацию после изменения модели
+
+    // Генерация последовательности шагов для каждого алгоритма
+    void generateDFSSteps(int start);
+    void generateBFSSteps(int start);
+    void generateDijkstraSteps(int start);
+    void generateFloydSteps();
+
+    void showCurrentStep(); // Отобразить текущий шаг (текст + визуализация)
+
+    Graph *graph; // Модель графа
+    GraphVisuals *visuals; // Объект, отвечающий за отрисовку
+    QGraphicsScene *scene; // Графическая сцена Qt
+
+    // Виджеты интерфейса
+    QGraphicsView *view;
+
+    QLineEdit *fromEdit; // Поле ввода "Откуда"
+    QLineEdit *toEdit; // Поле ввода "Куда"
+    QLineEdit *weightEdit; // Поле ввода "Вес"
+
+    QPushButton *clearGraphBtn;
+    QPushButton *addNodeBtn;
+    QPushButton *removeNodeBtn;
+    QPushButton *addEdgeBtn;
+    QPushButton *removeEdgeBtn;
+    QPushButton *setWeightBtn;
+    QRadioButton *matrixRadio;
+    QRadioButton *listRadio;
+
+    QPushButton *dfsBtn;
+    QPushButton *bfsBtn;
+    QPushButton *dijkstraBtn;
+    QPushButton *floydBtn;
+
+    QPushButton *loadSampleBtn;
+
+    QPushButton *prevStepBtn;
+    QPushButton *nextStepBtn;
+    QLabel *stepLabel; // Метка "Шаг X / Y"
+
+    QTextEdit *outputText; // Текстовое поле для вывода описания шагов
+
+    // Состояние пошаговой демонстрации
+    std::vector<AlgorithmStep> algorithmSteps; // Сгенерированная последовательность шагов
+    int currentStepIndex = -1; // Текущий индекс шага (-1 если алгоритм не запущен)
+};
+
+#endif
+
+
+
+
+
+
+
+#include "graph.h"
+#include <climits>
+#include <functional>
+#include <algorithm>
+
+// AdjMatrixStorage (матрица смежности)
+// Добавление вершины: расширяет матрицу на одну строку и столбец, заполняет -1, на диагонали 0
+void AdjMatrixStorage::addNode(const QString &name) {
+    size_t newSize = adjMatrix.size() + 1;
+    // Добавляем столбец во все существующие строки
+    for (auto &row : adjMatrix)
+        row.push_back(-1);
+    // Добавляем новую строку, заполненную -1
+    adjMatrix.push_back(std::vector<int>(newSize, -1));
+    adjMatrix.back().back() = 0;   // расстояние до себя
+
+    if (name.isEmpty())
+        names.push_back(QString::number(newSize));
+    else
+        names.push_back(name);
+}
+
+// Поиск индекса вершины по имени (возвращает -1 при отсутствии)
+int AdjMatrixStorage::getNodeIndex(const QString& name) const {
+    for (size_t i = 0; i < names.size(); ++i)
+        if (names[i] == name) return (int)i;
+    return -1;
+}
+
+// Удаление вершины: удаляет строку матрицы, столбец из всех строк и имя
+void AdjMatrixStorage::removeNode(int index) {
+    size_t n = adjMatrix.size();
+    if (index < 0 || index >= n) return;
+    adjMatrix.erase(adjMatrix.begin() + index);
+    for (auto &row : adjMatrix)
+        row.erase(row.begin() + index);
+    names.erase(names.begin() + index);
+}
+
+// Добавление или обновление ребра; если есть обратное – синхронизируем вес
+void AdjMatrixStorage::addEdge(int from, int to, int weight) {
+    if (from >= 0 && from < (int)adjMatrix.size() &&
+        to >= 0 && to < (int)adjMatrix.size() &&
+        from != to) {
+        adjMatrix[from][to] = weight;
+        if (adjMatrix[to][from] != -1)
+            adjMatrix[to][from] = weight;
+    }
+}
+
+// Удаление ребра (только указанного направления)
+void AdjMatrixStorage::removeEdge(int from, int to) {
+    if (from >= 0 && from < (int)adjMatrix.size() &&
+        to >= 0 && to < (int)adjMatrix.size())
+        adjMatrix[from][to] = -1;
+}
+
+// Получение веса ребра, -1 если нет
+int AdjMatrixStorage::getWeight(int from, int to) const {
+    if (from >= 0 && from < (int)adjMatrix.size() &&
+        to >= 0 && to < (int)adjMatrix.size())
+        return adjMatrix[from][to];
+    return -1;
+}
+
+size_t AdjMatrixStorage::nodeCount() const {
+    return adjMatrix.size();
+}
+
+const std::vector<QString>& AdjMatrixStorage::nodeNames() const {
+    return names;
+}
+
+// Экспорт данных для смены хранилища: собираем все вершины и рёбра
+GraphStorage::GraphData AdjMatrixStorage::exportData() const {
+    GraphData data;
+    data.names = names;
+    for (size_t i = 0; i < adjMatrix.size(); ++i)
+        for (size_t j = 0; j < adjMatrix.size(); ++j)
+            if (adjMatrix[i][j] != -1)
+                data.edges.push_back({(int)i, (int)j, adjMatrix[i][j]});
+    return data;
+}
+
+// AdjListStorage (список смежности)
+// Добавление вершины: добавляем пустой список соседей и имя
+void AdjListStorage::addNode(const QString &name) {
+    adjList.push_back({});
+    if (name.isEmpty())
+        names.push_back(QString::number(adjList.size()));
+    else
+        names.push_back(name);
+}
+
+int AdjListStorage::getNodeIndex(const QString& name) const {
+    for (size_t i = 0; i < names.size(); ++i)
+        if (names[i] == name) return (int)i;
+    return -1;
+}
+
+// Удаление вершины: удаляем её список, сдвигаем индексы в оставшихся списках
+void AdjListStorage::removeNode(int index) {
+    if (index < 0 || index >= (int)adjList.size()) return;
+    adjList.erase(adjList.begin() + index);
+    names.erase(names.begin() + index);
+
+    // Обновляем индексы соседей у всех вершин
+    for (auto &neighbors : adjList) {
+        // Удаляем записи, указывающие на удалённую вершину
+        neighbors.erase(std::remove_if(neighbors.begin(), neighbors.end(),
+                                       [index](const std::pair<int,int>& p) { return p.first == index; }),
+                        neighbors.end());
+        // Уменьшаем индексы, которые были больше удалённого
+        for (auto &p : neighbors) {
+            if (p.first > index) p.first--;
+        }
+    }
+}
+
+// Добавление ребра: если уже есть – обновляем вес, иначе вставляем; синхронизируем обратное направление
+void AdjListStorage::addEdge(int from, int to, int weight) {
+    if (from < 0 || from >= (int)adjList.size() ||
+        to < 0 || to >= (int)adjList.size() || from == to) return;
+
+    auto &neigh = adjList[from];
+    auto it = std::find_if(neigh.begin(), neigh.end(),
+                           [to](const std::pair<int,int>& p) { return p.first == to; });
+    if (it != neigh.end())
+        it->second = weight;
+    else
+        neigh.emplace_back(to, weight);
+
+    // Синхронизация обратного ребра, если оно существует
+    if (getWeight(to, from) != -1) {
+        auto &rev = adjList[to];
+        auto rit = std::find_if(rev.begin(), rev.end(),
+                                [from](const std::pair<int,int>& p) { return p.first == from; });
+        if (rit != rev.end()) rit->second = weight;
+    }
+}
+
+// Удаление ребра (только from → to)
+void AdjListStorage::removeEdge(int from, int to) {
+    if (from < 0 || from >= (int)adjList.size() ||
+        to < 0 || to >= (int)adjList.size()) return;
+    auto &neigh = adjList[from];
+    neigh.erase(std::remove_if(neigh.begin(), neigh.end(),
+                               [to](const std::pair<int,int>& p) { return p.first == to; }),
+                neigh.end());
+}
+
+// Получение веса ребра (перебор списка вершины)
+int AdjListStorage::getWeight(int from, int to) const {
+    if (from < 0 || from >= (int)adjList.size() ||
+        to < 0 || to >= (int)adjList.size()) return -1;
+    for (const auto &p : adjList[from])
+        if (p.first == to) return p.second;
+    return -1;
+}
+
+size_t AdjListStorage::nodeCount() const {
+    return adjList.size();
+}
+
+const std::vector<QString>& AdjListStorage::nodeNames() const {
+    return names;
+}
+
+// Экспорт данных: собираем все рёбра из списков
+GraphStorage::GraphData AdjListStorage::exportData() const {
+    GraphData data;
+    data.names = names;
+    for (size_t i = 0; i < adjList.size(); ++i)
+        for (const auto &p : adjList[i])
+            data.edges.push_back({(int)i, p.first, p.second});
+    return data;
+}
+
+// Graph (основной класс)
+// По умолчанию используется матрица смежности
+Graph::Graph() {
+    storage_ = std::make_unique<AdjMatrixStorage>();
+}
+
+Graph::~Graph() = default;
+
+// Переключение способа хранения с копированием всех данных
+void Graph::setStorageType(StorageType type) {
+    if (storageType() == type) return;
+
+    // Экспортируем данные из текущего хранилища
+    GraphStorage::GraphData data;
+    if (storage_) data = storage_->exportData();
+
+    // Создаём новое хранилище
+    std::unique_ptr<GraphStorage> newStorage;
+    if (type == StorageType::AdjacencyMatrix)
+        newStorage = std::make_unique<AdjMatrixStorage>();
+    else
+        newStorage = std::make_unique<AdjListStorage>();
+
+    // Импортируем вершины и рёбра
+    for (const auto& name : data.names)
+        newStorage->addNode(name);
+    for (const auto& e : data.edges)
+        newStorage->addEdge(e.from, e.to, e.weight);
+
+    storage_ = std::move(newStorage);
+}
+
+// Определяем текущий тип хранилища
+StorageType Graph::storageType() const {
+    if (dynamic_cast<AdjMatrixStorage*>(storage_.get()))
+        return StorageType::AdjacencyMatrix;
+    return StorageType::AdjacencyList;
+}
+
+// Делегирование операций хранилищу
+void Graph::addNode(const QString &name) { storage_->addNode(name); }
+void Graph::removeNode(int index) { storage_->removeNode(index); }
+void Graph::addEdge(int from, int to, int weight) { storage_->addEdge(from, to, weight); }
+void Graph::removeEdge(int from, int to) { storage_->removeEdge(from, to); }
+void Graph::setWeight(int from, int to, int weight) { storage_->addEdge(from, to, weight); }
+int Graph::getWeight(int from, int to) const { return storage_->getWeight(from, to); }
+int Graph::getNodeIndex(const QString& name) const { return storage_->getNodeIndex(name); }
+size_t Graph::nodeCount() const { return storage_->nodeCount(); }
+const std::vector<QString>& Graph::nodeNames() const { return storage_->nodeNames(); }
+
+// Алгоритмы (работают через getWeight, поэтому не зависят от хранилища)
+// Обход в глубину (рекурсивная реализация)
+std::vector<int> Graph::dfs(int start) const {
+    std::vector<int> order;
+    std::vector<bool> visited(nodeCount(), false);
+    std::function<void(int)> dfsRec = [&](int v) {
+        visited[v] = true;
+        order.push_back(v);
+        for (size_t i = 0; i < nodeCount(); ++i) {
+            if (getWeight(v, (int)i) != -1 && !visited[i])
+                dfsRec((int)i);
+        }
+    };
+    dfsRec(start);
+    return order;
+}
+
+// Обход в ширину (с очередью)
+std::vector<int> Graph::bfs(int start) const {
+    std::vector<int> order;
+    size_t n = nodeCount();
+    std::vector<bool> visited(n, false);
+    std::queue<int> q;
+    visited[start] = true;
+    q.push(start);
+    while (!q.empty()) {
+        int cur = q.front(); q.pop();
+        order.push_back(cur);
+        for (size_t i = 0; i < n; ++i) {
+            if (getWeight(cur, (int)i) != -1 && !visited[i]) {
+                visited[i] = true;
+                q.push((int)i);
+            }
+        }
+    }
+    return order;
+}
+
+// Алгоритм Дейкстры (для неотрицательных весов)
+std::pair<std::vector<int>, std::vector<int>> Graph::dijkstra(int start) const {
+    const int INF = 1e9;
+    size_t n = nodeCount();
+    std::vector<int> dist(n, INF);
+    std::vector<int> parent(n, -1);
+    std::vector<bool> used(n, false);
+    dist[start] = 0;
+    for (size_t i = 0; i < n; ++i) {
+        int v = -1;
+        // Выбор непосещённой вершины с минимальным расстоянием
+        for (size_t j = 0; j < n; ++j)
+            if (!used[j] && (v == -1 || dist[j] < dist[v]))
+                v = (int)j;
+        if (dist[v] == INF) break;
+        used[v] = true;
+        // Релаксация соседей
+        for (size_t to = 0; to < n; ++to) {
+            int w = getWeight(v, (int)to);
+            if (w != -1) {
+                int newDist = dist[v] + w;
+                if (newDist < dist[to]) {
+                    dist[to] = newDist;
+                    parent[to] = v;
+                }
+            }
+        }
+    }
+    return {dist, parent};
+}
+
+// Алгоритм Флойда-Уоршелла (все пары кратчайших путей)
+std::vector<std::vector<int>> Graph::floyd() const {
+    const int INF = 1e9;
+    size_t n = nodeCount();
+    std::vector<std::vector<int>> dist(n, std::vector<int>(n, INF));
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            if (i == j) dist[i][j] = 0;
+            else {
+                int w = getWeight((int)i, (int)j);
+                if (w != -1) dist[i][j] = w;
+            }
+        }
+    }
+    // Тройной цикл обновлений
+    for (size_t k = 0; k < n; ++k)
+        for (size_t i = 0; i < n; ++i)
+            for (size_t j = 0; j < n; ++j)
+                if (dist[i][k] < INF && dist[k][j] < INF)
+                    dist[i][j] = std::min(dist[i][j], dist[i][k] + dist[k][j]);
+    // Возвращаем -1 для недостижимых пар
+    for (size_t i = 0; i < n; ++i)
+        for (size_t j = 0; j < n; ++j)
+            if (dist[i][j] >= INF) dist[i][j] = -1;
+    return dist;
+}
+
+
+
+
+
+
+
+
+#include "graphvisuals.h"
+#include <QtMath>
+#include <QPen>
+#include <QBrush>
+#include <QFont>
+#include <QGraphicsTextItem>
+
+GraphVisuals::GraphVisuals(QGraphicsScene *scene, QGraphicsView *view, Graph *graph)
+    : scene(scene), view(view), graph(graph)
+{
+}
+
+// Полная перерисовка графа в обычном режиме
+void GraphVisuals::redraw()
+{
+    scene->clear();
+    size_t n = graph->nodeCount();
+    if (n == 0) return;
+
+    if (positions.size() != n)
+        assignCircularPositions();
+
+    drawBaseGraph(); // Рисуем все рёбра и вершины
+    fitToView(); // Подгоняем масштаб
+}
+
+// Визуализация одного шага алгоритма: сначала рёбра, потом вершины, потом подсветка
+void GraphVisuals::visualizeStep(const std::vector<int>& vertices,
+                                 const std::vector<std::pair<int,int>>& edges)
+{
+    scene->clear();
+    size_t n = graph->nodeCount();
+    if (n == 0) return;
+
+    if (positions.size() != n)
+        assignCircularPositions();
+
+    // 1. Все обычные рёбра (чёрные, без подсветки)
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            if (graph->getWeight((int)i, (int)j) != -1) {
+                drawEdge((int)i, (int)j, Qt::black, 1);
+            }
+        }
+    }
+
+    // 2. Вершины: обычные (розовая обводка, белая заливка) или подсвеченные (светло-розовая заливка, красная обводка)
+    for (size_t i = 0; i < n; ++i) {
+        QPointF center = positions[i];
+        bool highlighted = false;
+        for (int v : vertices) {
+            if (v == (int)i) {
+                highlighted = true;
+                break;
+            }
+        }
+        if (highlighted) {
+            // Подсвеченная вершина
+            scene->addEllipse(center.x() - 25, center.y() - 25, 50, 50,
+                              QPen(Qt::red, 3), QBrush(QColor("lightpink")));
+            QGraphicsTextItem *label = scene->addText(graph->nodeNames()[(int)i]);
+            label->setFont(QFont("Arial", 10, QFont::Bold));
+            QRectF rect = label->boundingRect();
+            label->setPos(center.x() - rect.width() / 2, center.y() - rect.height() / 2);
+        } else {
+            // Обычная вершина
+            scene->addEllipse(center.x() - 25, center.y() - 25, 50, 50,
+                              QPen(QColor("hotpink"), 2), QBrush(Qt::white));
+            QGraphicsTextItem *label = scene->addText(graph->nodeNames()[(int)i]);
+            label->setFont(QFont("Arial", 10));
+            QRectF rect = label->boundingRect();
+            label->setPos(center.x() - rect.width() / 2, center.y() - rect.height() / 2);
+        }
+    }
+
+    // 3. Подсвеченные рёбра (красным, поверх вершин)
+    for (const auto& e : edges) {
+        drawEdge(e.first, e.second, Qt::red, 3);
+    }
+
+    fitToView();
+}
+
+// Рисование базового графа (все рёбра чёрным, вершины с розовой обводкой)
+void GraphVisuals::drawBaseGraph()
+{
+    size_t n = graph->nodeCount();
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            if (graph->getWeight((int)i, (int)j) != -1) {
+                drawEdge((int)i, (int)j, Qt::black, 1);
+            }
+        }
+    }
+    for (size_t i = 0; i < n; ++i) {
+        QPointF center = positions[i];
+        scene->addEllipse(center.x() - 25, center.y() - 25, 50, 50,
+                          QPen(QColor("hotpink"), 2), QBrush(Qt::white));
+        QGraphicsTextItem *label = scene->addText(graph->nodeNames()[(int)i]);
+        label->setFont(QFont("Arial", 10));
+        QRectF rect = label->boundingRect();
+        label->setPos(center.x() - rect.width() / 2, center.y() - rect.height() / 2);
+    }
+}
+
+// Расстановка вершин по окружности (радиус 150)
+void GraphVisuals::assignCircularPositions()
+{
+    size_t n = graph->nodeCount();
+    positions.resize(n);
+    double radius = 150.0;
+    QPointF center(0, 0);
+    for (size_t i = 0; i < n; ++i) {
+        double angle = 2.0 * M_PI * i / n;
+        positions[i] = center + QPointF(radius * cos(angle), radius * sin(angle));
+    }
+}
+
+// Масштабирование сцены под размер виджета
+void GraphVisuals::fitToView()
+{
+    scene->setSceneRect(scene->itemsBoundingRect());
+    view->resetTransform();
+    view->fitInView(scene->sceneRect(), Qt::KeepAspectRatio);
+}
+
+// Рисует одно ребро (линия + стрелка + подпись веса).
+// from индекс вершины-источника, to индекс вершины-назначения, color цвет линии и стрелки, boldness толщина (1 - обычное ребро, >1 - подсвеченное)
+// Для обычных рёбер (boldness==1) подпись веса отображается тёмно-розовым, при встречных рёбрах выводится только одна подпись (для from < to).
+
+void GraphVisuals::drawEdge(int from, int to, QColor color, int boldness)
+{
+    // Если петля (from == to) - рисуем специальный указатель для подсвеченных шагов алгоритмов
+    if (from == to) {
+        if (boldness > 1) {
+            QPointF center = positions[from];
+            QPointF tip = center + QPointF(-25, 0); // остриё на левой границе круга
+            double arrowSize = 5 * boldness;
+            QPointF p1 = tip + QPointF(-arrowSize, -arrowSize/2);
+            QPointF p2 = tip + QPointF(-arrowSize, arrowSize/2);
+            QPolygonF arrowHead;
+            arrowHead << tip << p1 << p2;
+            scene->addPolygon(arrowHead, QPen(color), QBrush(color));
+        }
+        return; // обычные петли не рисуем
+    }
+
+    QPointF pFrom = positions[from];
+    QPointF pTo = positions[to];
+    QLineF line(pFrom, pTo);
+
+    double angle = atan2(line.dy(), line.dx());
+
+    // Начальная и конечная точки линии (с учётом радиуса вершин = 25)
+    QPointF start = pFrom + QPointF(25 * cos(angle), 25 * sin(angle));
+    QPointF end   = pTo   - QPointF(25 * cos(angle), 25 * sin(angle));
+
+    // Рисуем линию
+    scene->addLine(QLineF(start, end), QPen(color, boldness));
+
+    // Рисуем наконечник стрелки
+    double arrowSize = boldness * 5;
+    QPointF arrowP1 = end - QPointF(arrowSize * cos(angle - M_PI / 6),
+                                    arrowSize * sin(angle - M_PI / 6));
+    QPointF arrowP2 = end - QPointF(arrowSize * cos(angle + M_PI / 6),
+                                    arrowSize * sin(angle + M_PI / 6));
+    QPolygonF arrowHead;
+    arrowHead << end << arrowP1 << arrowP2;
+    scene->addPolygon(arrowHead, QPen(color), QBrush(color));
+
+    // Подпись веса (только для обычных рёбер, boldness == 1)
+    if (boldness == 1) {
+        QPointF mid = (start + end) / 2.0;
+        QPointF dir = end - start;
+        double len = sqrt(dir.x() * dir.x() + dir.y() * dir.y());
+        if (len == 0) return;
+        QPointF unit = dir / len;
+        QPointF perp(-unit.y(), unit.x());
+        double offset = 18.0;
+
+        int w = graph->getWeight(from, to);
+        int wReverse = graph->getWeight(to, from);
+        // Выводим одну подпись (если нет обратного ребра или from < to)
+        if (wReverse == -1 || from < to) {
+            QGraphicsTextItem *txt = scene->addText(QString::number(w));
+            txt->setDefaultTextColor(QColor("deeppink")); // Тёмно-розовый цвет текста веса
+            txt->setFont(QFont("Arial", 10, QFont::Bold));
+            QRectF r = txt->boundingRect();
+            txt->setPos(mid - perp * offset - QPointF(r.width() / 2, r.height() / 2));
+        }
+    }
+}
+
+
+
+
+
+
+#include <QApplication>
+#include "mainwindow.h"
+
+// Точка входа в приложение
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv); // Создаём объект приложения Qt
+    MainWindow w; // Создаём главное окно (пустой граф)
+    w.show(); // Отображаем окно
+    return a.exec(); // Запускаем цикл обработки событий
+}
+
+
+
+
+
+
+
+#include "mainwindow.h"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QFormLayout>
+#include <QMessageBox>
+#include <sstream>
+#include <queue>
+#include <stack>
+#include <QInputDialog>
+#include <QRadioButton>
+#include <QGroupBox>
+#include <algorithm>
+#include <climits>
+
+// Конструктор главного окна: создаём модель и интерфейс, граф изначально пуст
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+{
+    graph = new Graph();
+    setupUI();
+}
+
+MainWindow::~MainWindow()
+{
+    delete graph;
+}
+
+// Создание и компоновка всех элементов управления
+void MainWindow::setupUI()
+{
+    QWidget *central = new QWidget(this);
+    setCentralWidget(central);
+    QHBoxLayout *mainLayout = new QHBoxLayout(central);
+
+    // Левая панель (управление)
+    QVBoxLayout *leftPanel = new QVBoxLayout();
+
+    // Поля ввода для вершин и веса
+    QFormLayout *form = new QFormLayout();
+    fromEdit = new QLineEdit();
+    toEdit = new QLineEdit();
+    weightEdit = new QLineEdit();
+    form->addRow("Откуда:", fromEdit);
+    form->addRow("Куда:", toEdit);
+    form->addRow("Вес:", weightEdit);
+    leftPanel->addLayout(form);
+
+    // Кнопки добавления/удаления вершин
+    QHBoxLayout *nodeBtns = new QHBoxLayout();
+    addNodeBtn = new QPushButton("Добавить вершину");
+    removeNodeBtn = new QPushButton("Удалить вершину");
+    nodeBtns->addWidget(addNodeBtn);
+    nodeBtns->addWidget(removeNodeBtn);
+    leftPanel->addLayout(nodeBtns);
+
+    // Кнопки для работы с рёбрами
+    QHBoxLayout *edgeBtns = new QHBoxLayout();
+    addEdgeBtn = new QPushButton("Добавить ребро");
+    removeEdgeBtn = new QPushButton("Удалить ребро");
+    setWeightBtn = new QPushButton("Изменить вес");
+    edgeBtns->addWidget(addEdgeBtn);
+    edgeBtns->addWidget(removeEdgeBtn);
+    edgeBtns->addWidget(setWeightBtn);
+    leftPanel->addLayout(edgeBtns);
+
+    // Кнопки алгоритмов
+    leftPanel->addWidget(new QLabel("Алгоритмы:"));
+    QHBoxLayout *algoBtns1 = new QHBoxLayout();
+    dfsBtn = new QPushButton("DFS");
+    bfsBtn = new QPushButton("BFS");
+    algoBtns1->addWidget(dfsBtn);
+    algoBtns1->addWidget(bfsBtn);
+    leftPanel->addLayout(algoBtns1);
+
+    QHBoxLayout *algoBtns2 = new QHBoxLayout();
+    dijkstraBtn = new QPushButton("Дейкстра");
+    floydBtn = new QPushButton("Флойд");
+    algoBtns2->addWidget(dijkstraBtn);
+    algoBtns2->addWidget(floydBtn);
+    leftPanel->addLayout(algoBtns2);
+
+    // Навигация по шагам
+    QHBoxLayout *stepNav = new QHBoxLayout();
+    prevStepBtn = new QPushButton("← Шаг назад");
+    nextStepBtn = new QPushButton("Шаг вперёд →");
+    stepLabel = new QLabel("Шаг 0 / 0");
+    stepLabel->setAlignment(Qt::AlignCenter);
+    stepNav->addWidget(prevStepBtn);
+    stepNav->addWidget(stepLabel);
+    stepNav->addWidget(nextStepBtn);
+    leftPanel->addLayout(stepNav);
+
+    // Загрузка образца и очистка графа
+    loadSampleBtn = new QPushButton("Загрузить образец (из задания)");
+    leftPanel->addWidget(loadSampleBtn);
+
+    clearGraphBtn = new QPushButton("Очистить граф");
+    leftPanel->addWidget(clearGraphBtn);
+
+    QGroupBox *storageGroup = new QGroupBox("Способ хранения:");
+    QHBoxLayout *storageLayout = new QHBoxLayout;
+    QRadioButton *matrixRadio = new QRadioButton("Матрица смежности");
+    QRadioButton *listRadio  = new QRadioButton("Список смежности");
+    matrixRadio->setChecked(true); // по умолчанию матрица
+    storageLayout->addWidget(matrixRadio);
+    storageLayout->addWidget(listRadio);
+    storageGroup->setLayout(storageLayout);
+    leftPanel->addWidget(storageGroup);
+
+    // Текстовое поле для вывода информации (логи, описание шагов)
+    outputText = new QTextEdit();
+    outputText->setReadOnly(true);
+    outputText->setMaximumHeight(120);
+    leftPanel->addWidget(outputText);
+
+    leftPanel->addStretch();
+    mainLayout->addLayout(leftPanel);
+
+    // Правая часть (визуализация)
+    scene = new QGraphicsScene(this);
+    view = new QGraphicsView(scene);
+    view->setRenderHint(QPainter::Antialiasing);
+    view->setMinimumSize(500, 400);
+    mainLayout->addWidget(view, 1);
+
+    visuals = new GraphVisuals(scene, view, graph);
+
+    // Подключение сигналов к слотам
+    connect(addNodeBtn, &QPushButton::clicked, this, &MainWindow::onAddNode);
+    connect(removeNodeBtn, &QPushButton::clicked, this, &MainWindow::onRemoveNode);
+    connect(addEdgeBtn, &QPushButton::clicked, this, &MainWindow::onAddEdge);
+    connect(removeEdgeBtn, &QPushButton::clicked, this, &MainWindow::onRemoveEdge);
+    connect(setWeightBtn, &QPushButton::clicked, this, &MainWindow::onSetWeight);
+
+    connect(dfsBtn, &QPushButton::clicked, this, &MainWindow::onStartDFS);
+    connect(bfsBtn, &QPushButton::clicked, this, &MainWindow::onStartBFS);
+    connect(dijkstraBtn, &QPushButton::clicked, this, &MainWindow::onStartDijkstra);
+    connect(floydBtn, &QPushButton::clicked, this, &MainWindow::onStartFloyd);
+
+    connect(prevStepBtn, &QPushButton::clicked, this, &MainWindow::onStepBackward);
+    connect(nextStepBtn, &QPushButton::clicked, this, &MainWindow::onStepForward);
+
+    connect(loadSampleBtn, &QPushButton::clicked, this, &MainWindow::onLoadSampleGraph);
+    connect(clearGraphBtn, &QPushButton::clicked, this, &MainWindow::onClearGraph);
+
+    connect(matrixRadio, &QRadioButton::toggled, this, [this](bool checked) {
+        if (checked) graph->setStorageType(StorageType::AdjacencyMatrix);
+    });
+    connect(listRadio, &QRadioButton::toggled, this, [this](bool checked) {
+        if (checked) graph->setStorageType(StorageType::AdjacencyList);
+    });
+}
+
+// Обновление визуализации (пересчёт координат и перерисовка)
+void MainWindow::updateVisuals()
+{
+    visuals->assignCircularPositions();
+    visuals->redraw();
+}
+
+// Слоты редактирования графа
+
+// Добавление вершины через диалог ввода имени
+void MainWindow::onAddNode()
+{
+    bool ok;
+    QString name = QInputDialog::getText(this, "Добавить вершину",
+                                         "Введите имя вершины:", QLineEdit::Normal,
+                                         "", &ok);
+    if (ok && !name.isEmpty()) {
+        if (graph->getNodeIndex(name) != -1) {
+            QMessageBox::warning(this, "Ошибка", "Вершина с таким именем уже существует.");
+            return;
+        }
+        graph->addNode(name);
+        updateVisuals();
+        outputText->append(QString("Вершина '%1' добавлена.").arg(name));
+    }
+}
+
+// Удаление вершины через диалог ввода имени
+void MainWindow::onRemoveNode()
+{
+    bool ok;
+    QString name = QInputDialog::getText(this, "Удалить вершину",
+                                         "Введите имя вершины для удаления:",
+                                         QLineEdit::Normal, "", &ok);
+    if (!ok || name.isEmpty()) return;
+
+    int index = graph->getNodeIndex(name);
+    if (index == -1) {
+        QMessageBox::warning(this, "Ошибка", "Вершина с именем '" + name + "' не найдена.");
+        return;
+    }
+
+    graph->removeNode(index);
+    updateVisuals();
+    outputText->append(QString("Вершина '%1' удалена.").arg(name));
+}
+
+// Добавление ребра (из полей Откуда/Куда/Вес)
+void MainWindow::onAddEdge()
+{
+    QString fromName = fromEdit->text().trimmed();
+    QString toName = toEdit->text().trimmed();
+    int w = weightEdit->text().toInt();
+
+    int from = graph->getNodeIndex(fromName);
+    int to = graph->getNodeIndex(toName);
+    if (from == -1 || to == -1) {
+        QMessageBox::warning(this, "Ошибка", "Одна или обе вершины не найдены.");
+        return;
+    }
+    if (from == to) {
+        QMessageBox::warning(this, "Ошибка", "Нельзя создать ребро из вершины в саму себя.");
+        return;
+    }
+
+    bool hadReverse = (graph->getWeight(to, from) != -1);
+    graph->addEdge(from, to, w);
+    updateVisuals();
+
+    if (hadReverse) {
+        outputText->append(QString("Ребро %1 → %2 (вес %3) добавлено. Встречное ребро %2 → %1 также обновлено до веса %3.")
+                               .arg(fromName, toName).arg(w));
+    } else {
+        outputText->append(QString("Ребро %1 → %2 (вес %3) добавлено.").arg(fromName, toName).arg(w));
+    }
+}
+
+// Удаление ребра (одного направления)
+void MainWindow::onRemoveEdge()
+{
+    QString fromName = fromEdit->text().trimmed();
+    QString toName = toEdit->text().trimmed();
+    int from = graph->getNodeIndex(fromName);
+    int to = graph->getNodeIndex(toName);
+    if (from == -1 || to == -1) {
+        QMessageBox::warning(this, "Ошибка", "Вершины не найдены.");
+        return;
+    }
+    graph->removeEdge(from, to);
+    updateVisuals();
+    outputText->append(QString("Ребро %1 → %2 удалено.").arg(fromName, toName));
+}
+
+// Изменение веса ребра
+void MainWindow::onSetWeight()
+{
+    QString fromName = fromEdit->text().trimmed();
+    QString toName = toEdit->text().trimmed();
+    int w = weightEdit->text().toInt();
+
+    int from = graph->getNodeIndex(fromName);
+    int to = graph->getNodeIndex(toName);
+    if (from == -1 || to == -1) {
+        QMessageBox::warning(this, "Ошибка", "Вершины не найдены.");
+        return;
+    }
+    if (from == to) {
+        QMessageBox::warning(this, "Ошибка", "Нельзя изменить вес петли (ребро из вершины в саму себя).");
+        return;
+    }
+
+    bool hadReverse = (graph->getWeight(to, from) != -1);
+    graph->setWeight(from, to, w);
+    updateVisuals();
+
+    if (hadReverse) {
+        outputText->append(QString("Вес ребра %1 → %2 изменён на %3. Встречное ребро %2 → %1 также обновлено до %3.")
+                               .arg(fromName, toName).arg(w));
+    } else {
+        outputText->append(QString("Вес ребра %1 → %2 изменён на %3.").arg(fromName, toName).arg(w));
+    }
+}
+
+// Загрузка тестового графа из задания
+void MainWindow::onLoadSampleGraph()
+{
+    while (graph->nodeCount() > 0)
+        graph->removeNode(0); // Очищаем текущий граф
+
+    // Создаём 6 вершин с именами 1..6
+    for (int i = 1; i <= 6; ++i)
+        graph->addNode(QString::number(i));
+
+    // Добавляем рёбра (индексы 0..5 соответствуют именам 1..6)
+    graph->addEdge(1, 3, 20);  // 2 -> 4
+    graph->addEdge(1, 0, 28);  // 2 -> 1
+    graph->addEdge(3, 5, 31);  // 4 -> 6
+    graph->addEdge(4, 1, 21);  // 5 -> 2
+    graph->addEdge(3, 4, 39);  // 4 -> 5
+    graph->addEdge(4, 3, 39);  // 5 -> 4
+    graph->addEdge(5, 0, 18);  // 6 -> 1
+    graph->addEdge(0, 3, 15);  // 1 -> 4
+    graph->addEdge(0, 2, 13);  // 1 -> 3
+    graph->addEdge(2, 4, 30);  // 3 -> 5
+
+    updateVisuals();
+    outputText->append("Загружен образец графа из задания.");
+}
+
+// Полная очистка графа (удаление всех вершин)
+void MainWindow::onClearGraph()
+{
+    while (graph->nodeCount() > 0) {
+        graph->removeNode(0);
+    }
+    updateVisuals();
+    algorithmSteps.clear();
+    currentStepIndex = -1;
+    stepLabel->setText("Шаг 0 / 0");
+    outputText->clear();
+    outputText->append("Граф очищен.");
+}
+
+// Запуск алгоритмов (получение стартовой вершины из поля "Откуда")
+void MainWindow::onStartDFS()
+{
+    QString startName = fromEdit->text().trimmed();
+    int start = graph->getNodeIndex(startName);
+    if (start == -1) {
+        QMessageBox::warning(this, "Ошибка", "Вершина '" + startName + "' не найдена.");
+        return;
+    }
+    generateDFSSteps(start);
+    currentStepIndex = 0;
+    showCurrentStep();
+}
+
+void MainWindow::onStartBFS()
+{
+    QString startName = fromEdit->text().trimmed();
+    int start = graph->getNodeIndex(startName);
+    if (start == -1) {
+        QMessageBox::warning(this, "Ошибка", "Вершина '" + startName + "' не найдена.");
+        return;
+    }
+    generateBFSSteps(start);
+    currentStepIndex = 0;
+    showCurrentStep();
+}
+
+void MainWindow::onStartDijkstra()
+{
+    QString startName = fromEdit->text().trimmed();
+    int start = graph->getNodeIndex(startName);
+    if (start == -1) {
+        QMessageBox::warning(this, "Ошибка", "Вершина '" + startName + "' не найдена.");
+        return;
+    }
+    generateDijkstraSteps(start);
+    currentStepIndex = 0;
+    showCurrentStep();
+}
+
+void MainWindow::onStartFloyd()
+{
+    generateFloydSteps();
+    currentStepIndex = 0;
+    showCurrentStep();
+}
+
+// Генерация последовательностей шагов
+
+// DFS: пошаговая рекурсивная реализация
+void MainWindow::generateDFSSteps(int start)
+{
+    algorithmSteps.clear();
+    size_t n = graph->nodeCount();
+    std::vector<bool> visited(n, false);
+    std::vector<int> order;
+
+    std::function<void(int)> dfsVisit;
+    dfsVisit = [&](int v) {
+        visited[v] = true;
+        order.push_back(v);
+        algorithmSteps.push_back(AlgorithmStep{
+            QString("Посещаем вершину %1").arg(graph->nodeNames()[v]),
+            {v}, {}
+        });
+
+        // Собираем соседей в порядке возрастания индексов
+        std::vector<int> neighbors;
+        for (size_t i = 0; i < n; ++i) {
+            if (graph->getWeight(v, (int)i) != -1) {
+                neighbors.push_back((int)i);
+            }
+        }
+
+        for (int neighbor : neighbors) {
+            algorithmSteps.push_back(AlgorithmStep{
+                QString("Рассматриваем соседа %1 (ребро %2→%3)")
+                    .arg(graph->nodeNames()[neighbor])
+                    .arg(graph->nodeNames()[v])
+                    .arg(graph->nodeNames()[neighbor]),
+                {v, neighbor},
+                {{v, neighbor}}
+            });
+
+            if (!visited[neighbor]) {
+                dfsVisit(neighbor); // Рекурсивный вызов
+            } else {
+                algorithmSteps.push_back(AlgorithmStep{
+                    QString("Вершина %1 уже посещена.").arg(graph->nodeNames()[neighbor]),
+                    {neighbor}, {}
+                });
+            }
+        }
+        algorithmSteps.push_back(AlgorithmStep{
+            QString("Возврат из вершины %1").arg(graph->nodeNames()[v]),
+            {v}, {}
+        });
+    };
+
+    algorithmSteps.push_back(AlgorithmStep{
+        QString("Начинаем обход DFS от вершины %1").arg(graph->nodeNames()[start]),
+        {start}, {}
+    });
+    dfsVisit(start);
+
+    // Итоговый шаг: порядок обхода
+    QString result = "Итог DFS. Порядок обхода: ";
+    for (size_t i = 0; i < order.size(); ++i) {
+        result += graph->nodeNames()[order[i]];
+        if (i != order.size() - 1) result += ", ";
+    }
+    algorithmSteps.push_back(AlgorithmStep{result, {}, {}});
+}
+
+// BFS: пошаговая реализация с очередью
+void MainWindow::generateBFSSteps(int start)
+{
+    algorithmSteps.clear();
+    size_t n = graph->nodeCount();
+    std::vector<bool> visited(n, false);
+    std::queue<int> q;
+    std::vector<int> order;
+
+    visited[start] = true;
+    q.push(start);
+    algorithmSteps.push_back(AlgorithmStep{
+        QString("Помещаем в очередь вершину %1 и посещаем её").arg(graph->nodeNames()[start]),
+        {start}, {}
+    });
+
+    while (!q.empty()) {
+        int v = q.front(); q.pop();
+        order.push_back(v);
+        algorithmSteps.push_back(AlgorithmStep{
+            QString("Извлекаем из очереди вершину %1").arg(graph->nodeNames()[v]),
+            {v}, {}
+        });
+
+        for (size_t i = 0; i < n; ++i) {
+            if (graph->getWeight(v, (int)i) != -1) {
+                int neighbor = (int)i;
+                algorithmSteps.push_back(AlgorithmStep{
+                    QString("Рассматриваем соседа %1 (ребро %2→%3)")
+                        .arg(graph->nodeNames()[neighbor])
+                        .arg(graph->nodeNames()[v])
+                        .arg(graph->nodeNames()[neighbor]),
+                    {v, neighbor},
+                    {{v, neighbor}}
+                });
+
+                if (!visited[neighbor]) {
+                    visited[neighbor] = true;
+                    q.push(neighbor);
+                    algorithmSteps.push_back(AlgorithmStep{
+                        QString("Вершина %1 не посещена, добавляем в очередь.").arg(graph->nodeNames()[neighbor]),
+                        {neighbor}, {}
+                    });
+                } else {
+                    algorithmSteps.push_back(AlgorithmStep{
+                        QString("Вершина %1 уже посещена.").arg(graph->nodeNames()[neighbor]),
+                        {neighbor}, {}
+                    });
+                }
+            }
+        }
+    }
+
+    QString result = "Итог BFS. Порядок обхода: ";
+    for (size_t i = 0; i < order.size(); ++i) {
+        result += graph->nodeNames()[order[i]];
+        if (i != order.size() - 1) result += ", ";
+    }
+    algorithmSteps.push_back(AlgorithmStep{result, {}, {}});
+}
+
+// Дейкстра: пошаговая релаксация
+void MainWindow::generateDijkstraSteps(int start)
+{
+    algorithmSteps.clear();
+    size_t n = graph->nodeCount();
+    const int INF = 1e9;
+    std::vector<int> dist(n, INF);
+    std::vector<int> parent(n, -1);
+    std::vector<bool> used(n, false);
+    dist[start] = 0;
+
+    algorithmSteps.push_back(AlgorithmStep{
+        QString("Инициализация: dist[%1] = 0, остальные ∞").arg(graph->nodeNames()[start]),
+        {start}, {}
+    });
+
+    for (size_t iter = 0; iter < n; ++iter) {
+        int u = -1;
+        for (size_t i = 0; i < n; ++i) {
+            if (!used[i] && (u == -1 || dist[i] < dist[u])) {
+                u = (int)i;
+            }
+        }
+        if (u == -1 || dist[u] == INF) break;
+
+        algorithmSteps.push_back(AlgorithmStep{
+            QString("Выбрана непосещённая вершина %1 с минимальным расстоянием %2")
+                .arg(graph->nodeNames()[u]).arg(dist[u]),
+            {u}, {}
+        });
+
+        used[u] = true;
+        for (size_t v = 0; v < n; ++v) {
+            int w = graph->getWeight(u, (int)v);
+            if (w != -1) {
+                int newDist = dist[u] + w;
+                algorithmSteps.push_back(AlgorithmStep{
+                    QString("Проверяем соседа %1 (вес %2): dist[%3] = min(%4, %5)")
+                        .arg(graph->nodeNames()[v]).arg(w)
+                        .arg(graph->nodeNames()[v])
+                        .arg(dist[v] == INF ? "∞" : QString::number(dist[v]))
+                        .arg(newDist),
+                    {u, (int)v},
+                    {{u, (int)v}}
+                });
+
+                if (newDist < dist[v]) {
+                    dist[v] = newDist;
+                    parent[v] = u;
+                    algorithmSteps.push_back(AlgorithmStep{
+                        QString("Обновление: dist[%1] = %2").arg(graph->nodeNames()[v]).arg(newDist),
+                        {(int)v}, {{u, (int)v}}
+                    });
+                } else {
+                    algorithmSteps.push_back(AlgorithmStep{
+                        QString("Без изменений (текущее значение %1 <= %2)").arg(dist[v]).arg(newDist),
+                        {}, {}
+                    });
+                }
+            }
+        }
+    }
+
+    // Итоговый вывод расстояний и путей
+    QString result = "Итог Дейкстры от вершины " + graph->nodeNames()[start] + ":\n";
+    for (size_t i = 0; i < n; ++i) {
+        result += graph->nodeNames()[i] + ": ";
+        if (dist[i] == INF) {
+            result += "недостижима";
+        } else {
+            result += QString::number(dist[i]) + " (путь: ";
+            std::vector<int> path;
+            for (int v = (int)i; v != -1; v = parent[v])
+                path.push_back(v);
+            std::reverse(path.begin(), path.end());
+            for (size_t j = 0; j < path.size(); ++j) {
+                result += graph->nodeNames()[path[j]];
+                if (j != path.size() - 1) result += " → ";
+            }
+            result += ")";
+        }
+        result += "\n";
+    }
+    algorithmSteps.push_back(AlgorithmStep{result, {}, {}});
+}
+
+// Флойд: исходная матрица, итерации, итоговая матрица
+void MainWindow::generateFloydSteps()
+{
+    algorithmSteps.clear();
+    size_t n = graph->nodeCount();
+    const int INF = 1e9;
+
+    // Инициализация матрицы D
+    std::vector<std::vector<int>> D(n, std::vector<int>(n, INF));
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            if (i == j) D[i][j] = 0;
+            else {
+                int w = graph->getWeight((int)i, (int)j);
+                D[i][j] = (w == -1) ? INF : w;
+            }
+        }
+    }
+
+    // Исходная матрица
+    QString initMatrix = "Исходная матрица расстояний:\n    ";
+    for (size_t j = 0; j < n; ++j)
+        initMatrix += QString("%1 ").arg(graph->nodeNames()[j], 3);
+    initMatrix += "\n";
+    for (size_t i = 0; i < n; ++i) {
+        initMatrix += QString("%1 ").arg(graph->nodeNames()[i], 3);
+        for (size_t j = 0; j < n; ++j) {
+            if (i == j) initMatrix += " 0 ";
+            else {
+                int w = graph->getWeight((int)i, (int)j);
+                if (w == -1) initMatrix += " ∞ ";
+                else initMatrix += QString("%1 ").arg(w, 3);
+            }
+        }
+        initMatrix += "\n";
+    }
+    algorithmSteps.push_back(AlgorithmStep{initMatrix, {}, {}});
+
+    // Итерации алгоритма
+    for (size_t k = 0; k < n; ++k) {
+        algorithmSteps.push_back(AlgorithmStep{
+            QString("Итерация k = %1 (разрешена вершина %2)").arg(k + 1).arg(graph->nodeNames()[(int)k]),
+            {(int)k}, {}
+        });
+
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                if (i == j || i == k || j == k) continue;
+                int oldDist = D[i][j];
+                if (D[i][k] < INF && D[k][j] < INF) {
+                    int newDist = D[i][k] + D[k][j];
+                    if (newDist < oldDist) {
+                        D[i][j] = newDist;
+
+                        // Подсвечиваем рёбра, если они прямые
+                        std::vector<std::pair<int,int>> edges;
+                        if (graph->getWeight((int)i, (int)k) != -1)
+                            edges.push_back({(int)i, (int)k});
+                        if (graph->getWeight((int)k, (int)j) != -1)
+                            edges.push_back({(int)k, (int)j});
+
+                        algorithmSteps.push_back(AlgorithmStep{
+                            QString("Улучшение: D[%1][%2] = %3 (путь %1 → %4 → %2)")
+                                .arg(graph->nodeNames()[(int)i])
+                                .arg(graph->nodeNames()[(int)j])
+                                .arg(newDist)
+                                .arg(graph->nodeNames()[(int)k]),
+                            {(int)i, (int)j, (int)k},
+                            edges
+                        });
+                    }
+                }
+            }
+        }
+
+        algorithmSteps.push_back(AlgorithmStep{
+            QString("Итерация k = %1 завершена.").arg(k + 1),
+            {}, {}
+        });
+    }
+
+    // Итоговая матрица
+    QString result = "Итоговая матрица кратчайших расстояний:\n    ";
+    for (size_t j = 0; j < n; ++j)
+        result += QString("%1 ").arg(graph->nodeNames()[j], 3);
+    result += "\n";
+    for (size_t i = 0; i < n; ++i) {
+        result += QString("%1 ").arg(graph->nodeNames()[i], 3);
+        for (size_t j = 0; j < n; ++j) {
+            if (D[i][j] == INF)
+                result += " - ";
+            else
+                result += QString("%1 ").arg(D[i][j], 3);
+        }
+        result += "\n";
+    }
+    algorithmSteps.push_back(AlgorithmStep{result, {}, {}});
+}
+
+// Пошаговая навигация
+void MainWindow::onStepForward()
+{
+    if (algorithmSteps.empty() || currentStepIndex >= (int)algorithmSteps.size() - 1) return;
+    currentStepIndex++;
+    showCurrentStep();
+}
+
+void MainWindow::onStepBackward()
+{
+    if (algorithmSteps.empty() || currentStepIndex <= 0) return;
+    currentStepIndex--;
+    showCurrentStep();
+}
+
+// Отображение одного шага
+void MainWindow::showCurrentStep()
+{
+    if (currentStepIndex < 0 || currentStepIndex >= (int)algorithmSteps.size()) return;
+
+    const AlgorithmStep& step = algorithmSteps[currentStepIndex];
+    stepLabel->setText(QString("Шаг %1 / %2").arg(currentStepIndex + 1).arg(algorithmSteps.size()));
+    outputText->clear();
+    outputText->append(step.description);
+    visuals->visualizeStep(step.highlightedVertices, step.highlightedEdges);
+}
