@@ -1,0 +1,1088 @@
+// Содержит объявление структуры узла дерева Node и класса BinaryTree, реализующего бинарное дерево с набором операций
+#ifndef BINARYTREE_H
+#define BINARYTREE_H
+
+#include <string>
+#include <vector>
+#include <tuple>
+
+// Структура, представляющая узел бинарного дерева.
+// Каждый узел хранит символ (char) и указатели на левое и правое поддеревья.
+struct Node {
+    char data;      ///< Информационное поле (ключ) узла.
+    Node* left;     ///< Указатель на левое поддерево.
+    Node* right;    ///< Указатель на правое поддерево.
+
+    // Конструктор узла.
+    Node(char c) : data(c), left(nullptr), right(nullptr) {}
+};
+
+// Класс бинарного дерева.
+// Обеспечивает построение идеально сбалансированного дерева, преобразование в дерево поиска (BST), операции вставки, удаления, поиска, а также пошаговую визуализацию обходов и поиска.
+class BinaryTree {
+public:
+    BinaryTree(); // Конструктор по умолчанию.
+    ~BinaryTree(); // Деструктор (освобождает память).
+
+// Построить идеально сбалансированное бинарное дерево из строки символов.
+// Строка символов, из которых формируются узлы.
+// Средний элемент становится корнем, затем рекурсивно левая и правая половины.
+    void buildBalanced(const std::string& s);
+
+
+// Преобразовать текущее дерево в сбалансированное дерево поиска (BST).
+// Собирает все ключи, сортирует их и строит новое идеально сбалансированное BST. Старое дерево удаляется.
+    void convertToBST();
+    // Вставить ключ в дерево поиска.
+    void insertBST(char key);
+
+    // Удалить ключ из дерева поиска.
+    void deleteBST(char key);
+
+    // Проверить наличие ключа в дереве поиска (обычный, не пошаговый поиск).
+    bool searchBST(char key) const;
+
+    //Сбалансировать существующее дерево поиска.
+    void balanceBST();
+
+    // Подсчитать количество узлов с заданным ключом во всём дереве.
+    int countKey(char key) const;
+
+    // Получить последовательность узлов, посещённых при поиске в BST (пошаговый режим).
+    std::vector<Node*> searchBSTSteps(char key) const;
+
+    // Получить последовательность всех узлов (для пошагового подсчёта).
+    std::vector<Node*> countKeySteps(char key) const;
+
+    // Текстовые представления обходов
+    std::string inorder() const; // Симметричный (лево-корень-право) обход в виде строки.
+    std::string preorder() const; // Прямой (корень-лево-право) обход в виде строки.
+    std::string postorder() const; // Обратный (лево-право-корень) обход в виде строки.
+    std::string printHorizontal() const; // Горизонтальная печать (поворот на 90°).
+    std::string printVertical() const; // Вертикальная печать (по уровням).
+
+    // Вычислить координаты всех узлов для графической визуализации.
+    std::vector<std::tuple<Node*, int, int>> layoutTree() const;
+
+    void clear(); // Очистить дерево (удаляет все узлы).
+    Node* root() const { return root_; } // Получить указатель на корень дерева.
+    bool isBST() const { return isBST_; } // Проверить, является ли дерево деревом поиска.
+
+    void buildSpindly(const std::string& s); // Построить вырожденное дерево ("бамбук": каждый следующий узел — правый ребёнок).
+    void balanceTree(); // Сбалансировать произвольное дерево
+
+    // Вставить узел в заданную позицию
+    bool insertNode(char parentKey, char key, bool asLeftChild);
+
+    // Удалить первый найденный узел с заданным ключом
+    bool deleteNode(char key);
+
+    // Обходы, возвращающие вектор указателей
+    std::vector<Node*> inorderTraversal() const;
+    std::vector<Node*> preorderTraversal() const;
+    std::vector<Node*> postorderTraversal() const;
+
+private:
+    Node* root_; // Корень дерева.
+    bool isBST_; // Флаг, показывающий, что дерево является BST.
+
+    // Внутренние рекурсивные реализации
+    Node* buildBalancedRec(const std::string& s, int left, int right);
+    Node* insertBSTRec(Node* node, char key);
+    Node* deleteBSTRec(Node* node, char key);
+    Node* minValueNode(Node* node);
+    bool searchBSTRec(Node* node, char key) const;
+    int countKeyRec(Node* node, char key) const;
+    void inorderRec(Node* node, std::string& out) const;
+    void preorderRec(Node* node, std::string& out) const;
+    void postorderRec(Node* node, std::string& out) const;
+    void deleteRec(Node* node);
+    void storeInorder(Node* node, std::vector<char>& arr) const;
+    Node* buildBalancedBST(const std::vector<char>& arr, int start, int end);
+    Node* buildBalancedFromVector(const std::vector<char>& arr, int start, int end);
+
+    // Геометрия для визуализации
+    void layoutRec(Node* node, int x, int y, int hGap,
+                   std::vector<std::tuple<Node*, int, int>>& layout) const;
+    int getHeight(Node* node) const;
+    int getSubtreeWidth(Node* node) const;
+
+    // Вспомогательные для пошагового поиска и подсчёта
+    void searchBSTStepsRec(Node* node, char key, std::vector<Node*>& steps) const;
+    void countKeyStepsRec(Node* node, char key, std::vector<Node*>& steps) const;
+
+    // Для ручной вставки/удаления
+    Node* findNode(Node* node, char key) const;
+    std::pair<Node*, Node*> findNodeAndParent(Node* node, Node* parent, char key) const;
+
+    // Сбор указателей при обходах
+    void collectInorder(Node* node, std::vector<Node*>& vec) const;
+    void collectPreorder(Node* node, std::vector<Node*>& vec) const;
+    void collectPostorder(Node* node, std::vector<Node*>& vec) const;
+};
+
+#endif
+
+
+
+
+
+
+
+
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <QGraphicsScene>
+#include <QGraphicsView>
+#include <QTextEdit>
+#include <QSplitter>
+#include <QMenuBar>
+#include <QToolBar>
+#include <set>
+#include "binarytree.h"
+
+class MainWindow : public QMainWindow {
+    Q_OBJECT // Макрос, необходимый для работы сигналов и слотов
+public:
+    explicit MainWindow(QWidget *parent = nullptr); // Конструктор главного окна
+    ~MainWindow(); // Деструктор
+
+private slots:
+    // Слоты для меню "Дерево"
+    void onBuildSpindly(); // Создать вырожденное дерево ("бамбук")
+    void onBuildBalanced(); // Создать идеально сбалансированное дерево
+    void onBalanceTree(); // Сбалансировать текущее дерево (без сортировки)
+    void onConvertToBST(); // Преобразовать дерево в дерево поиска (BST)
+
+    // Слоты для меню "BST"
+    void onInsertBST(); // Вставить узел в BST
+    void onDeleteBST(); // Удалить узел из BST
+    void onSearchBST(); // Запустить пошаговый поиск в BST
+    void onBalanceBST(); // Сбалансировать BST
+    void onCountKey(); // Запустить пошаговый подсчёт узлов с заданным ключом
+
+    // Слоты для меню "Правка дерева"
+    void onInsertNode(); // Вставить узел вручную (к выбранному родителю)
+    void onDeleteNode(); // Удалить узел по ключу (первый найденный)
+
+    // Слоты для меню "Обходы"
+    void onShowInorder(); // Запустить пошаговый симметричный обход
+    void onShowPreorder(); // Запустить пошаговый прямой обход
+    void onShowPostorder(); // Запустить пошаговый обратный обход
+    void onStepForward(); // Перейти на следующий элемент в пошаговом режиме
+    void onStepBackward(); // Вернуться к предыдущему элементу
+    void onStopTraversal(); // Завершить пошаговый режим
+
+    // Слоты для меню "Текстовая печать"
+    void onShowHorizontalText(); // Показать горизонтальную текстовую печать
+    void onShowVerticalText(); // Показать вертикальную текстовую печать
+
+private:
+    void updateVisualization(); // Полная перерисовка дерева на сцене
+    void startStepMode(const std::vector<Node*>& nodes); // Запустить пошаговый режим с заданной последовательностью
+    QString collectTraversalString(const std::vector<Node*>& nodes) const; // Собрать строку из последовательности узлов
+
+    BinaryTree tree_; // Экземпляр бинарного дерева (основная структура данных)
+    QGraphicsScene *scene_; // Графическая сцена для рисования узлов и рёбер
+    QGraphicsView *view_; // Виджет для отображения сцены
+    QTextEdit *textOutput_; // Область вывода текстовых сообщений
+    QSplitter *splitter_; // Разделитель между графикой и текстовым выводом
+
+    QToolBar *traversalBar_; // Панель инструментов для кнопок пошагового режима
+    QAction *stepForwardAction_; // Действие "Шаг вперёд"
+    QAction *stepBackAction_; // Действие "Шаг назад"
+    QAction *stopTraversalAction_; // Действие "Завершить"
+
+    // Параметры пошагового режима
+    enum class Mode { None, Traversal, Search, Count }; // Возможные режимы: нет, обход, поиск, подсчёт
+    Mode mode_ = Mode::None; // Текущий активный режим
+    std::vector<Node*> stepSequence_; // Узлы, по которым происходит пошаговое движение
+    int stepIndex_ = -1; // Индекс текущего подсвеченного узла
+    bool stepActive_ = false; // Флаг активности пошагового режима
+    Node* searchFound_ = nullptr;  // Узел, найденный в результате поиска (если есть)
+    std::set<Node*> countMatches_; // Множество узлов, содержащих искомый ключ (для подсчёта)
+};
+
+#endif
+
+
+
+
+
+
+
+
+#include "binarytree.h"
+#include <algorithm>
+#include <sstream>
+#include <queue>
+#include <cmath>
+#include <functional>
+
+// Конструктор и деструктор
+BinaryTree::BinaryTree() : root_(nullptr), isBST_(false) {} // Изначально дерево пусто, не BST
+BinaryTree::~BinaryTree() { clear(); } // Освобождаем всю память
+
+void BinaryTree::clear() {
+    deleteRec(root_); // Рекурсивно удаляем все узлы
+    root_ = nullptr; // Обнуляем корень
+    isBST_ = false; // Сбрасываем флаг BST
+}
+
+// Построение идеально сбалансированного дерева
+void BinaryTree::buildBalanced(const std::string& s) {
+    clear(); // Удаляем предыдущее дерево
+    if (!s.empty()) {
+        int n = static_cast<int>(s.size()); // Определяем длину строки
+        root_ = buildBalancedRec(s, 0, n - 1); // Рекурсивное построение
+    }
+}
+
+Node* BinaryTree::buildBalancedRec(const std::string& s, int left, int right) {
+    if (left > right) return nullptr; // Условие выхода из рекурсии
+    int mid = left + (right - left) / 2; // Средний элемент для баланса
+    Node* node = new Node(s[mid]); // Создаём корень поддерева
+    node->left = buildBalancedRec(s, left, mid - 1); // Левая половина
+    node->right = buildBalancedRec(s, mid + 1, right); // Правая половина
+    return node;
+}
+
+// Преобразование в дерево поиска
+void BinaryTree::convertToBST() {
+    if (!root_) return; // Нет дерева – выходим
+    std::vector<char> arr;
+    storeInorder(root_, arr); // Собираем все ключи inorder
+    std::sort(arr.begin(), arr.end()); // Сортируем по возрастанию
+    int n = static_cast<int>(arr.size());
+    Node* newRoot = buildBalancedBST(arr, 0, n - 1); // Новое сбалансированное BST
+    deleteRec(root_); // Удаляем старое дерево
+    root_ = newRoot;
+    isBST_ = true; // Теперь дерево – BST
+}
+
+Node* BinaryTree::buildBalancedBST(const std::vector<char>& arr, int start, int end) {
+    if (start > end) return nullptr;
+    int mid = start + (end - start) / 2; // Такой же принцип баланса
+    Node* node = new Node(arr[mid]);
+    node->left = buildBalancedBST(arr, start, mid - 1);
+    node->right = buildBalancedBST(arr, mid + 1, end);
+    return node;
+}
+
+// Вставка / удаление в BST
+void BinaryTree::insertBST(char key) {
+    if (!isBST_) return; // Вставка допустима только в BST
+    root_ = insertBSTRec(root_, key);
+}
+
+Node* BinaryTree::insertBSTRec(Node* node, char key) {
+    if (!node) return new Node(key); // Базовый случай – создаём новый узел
+    if (key < node->data) // Меньше – идём влево
+        node->left = insertBSTRec(node->left, key);
+    else if (key > node->data) // Больше – идём вправо
+        node->right = insertBSTRec(node->right, key);
+    // Дубликаты игнорируются
+    return node;
+}
+
+void BinaryTree::deleteBST(char key) {
+    if (!isBST_) return;  // Удаление только в BST
+    root_ = deleteBSTRec(root_, key);
+}
+
+Node* BinaryTree::deleteBSTRec(Node* node, char key) {
+    if (!node) return node;
+    if (key < node->data)
+        node->left = deleteBSTRec(node->left, key);
+    else if (key > node->data)
+        node->right = deleteBSTRec(node->right, key);
+    else {
+        // Нашли узел для удаления
+        if (!node->left) { // Нет левого поддерева
+            Node* temp = node->right;
+            delete node;
+            return temp;
+        } else if (!node->right) { // Нет правого поддерева
+            Node* temp = node->left;
+            delete node;
+            return temp;
+        }
+        // Два поддерева: заменяем минимальным из правого
+        Node* temp = minValueNode(node->right);
+        node->data = temp->data;
+        node->right = deleteBSTRec(node->right, temp->data);
+    }
+    return node;
+}
+
+Node* BinaryTree::minValueNode(Node* node) {
+    Node* current = node;
+    while (current && current->left) // Самый левый узел – минимальный
+        current = current->left;
+    return current;
+}
+
+// Поиск в BST (обычный)
+bool BinaryTree::searchBST(char key) const {
+    if (!isBST_) return false; // Только для BST
+    return searchBSTRec(root_, key);
+}
+
+bool BinaryTree::searchBSTRec(Node* node, char key) const {
+    if (!node) return false;
+    if (key == node->data) return true; // Нашли
+    if (key < node->data) return searchBSTRec(node->left, key); // Ищем влево
+    return searchBSTRec(node->right, key); // Ищем вправо
+}
+
+// Балансировка существующего BST
+void BinaryTree::balanceBST() {
+    if (!isBST_ || !root_) return; // Балансируем только BST
+    std::vector<char> arr;
+    storeInorder(root_, arr); // Собираем отсортированный массив (inorder даёт порядок)
+    int n = static_cast<int>(arr.size());
+    Node* newRoot = buildBalancedBST(arr, 0, n - 1); // Строим идеально сбалансированное BST
+    deleteRec(root_);
+    root_ = newRoot;  // Старое удалено
+}
+
+// Подсчёт узлов с заданным ключом (во всём дереве)
+int BinaryTree::countKey(char key) const {
+    return countKeyRec(root_, key); // Простой рекурсивный обход
+}
+
+int BinaryTree::countKeyRec(Node* node, char key) const {
+    if (!node) return 0;
+    int cnt = (node->data == key) ? 1 : 0; // Текущий узел совпадает?
+    cnt += countKeyRec(node->left, key); // Добавляем левое поддерево
+    cnt += countKeyRec(node->right, key); // Добавляем правое
+    return cnt;
+}
+
+// Текстовые обходы (возвращают строку)
+std::string BinaryTree::inorder() const {
+    std::string result;
+    inorderRec(root_, result);
+    return result;
+}
+void BinaryTree::inorderRec(Node* node, std::string& out) const {
+    if (!node) return;
+    inorderRec(node->left, out); // Левое
+    out += node->data; // Корень
+    out += ' ';
+    inorderRec(node->right, out); // Правое
+}
+
+std::string BinaryTree::preorder() const {
+    std::string result;
+    preorderRec(root_, result);
+    return result;
+}
+void BinaryTree::preorderRec(Node* node, std::string& out) const {
+    if (!node) return;
+    out += node->data; out += ' '; // Корень
+    preorderRec(node->left, out); // Левое
+    preorderRec(node->right, out); // Правое
+}
+
+std::string BinaryTree::postorder() const {
+    std::string result;
+    postorderRec(root_, result);
+    return result;
+}
+void BinaryTree::postorderRec(Node* node, std::string& out) const {
+    if (!node) return;
+    postorderRec(node->left, out); // Левое
+    postorderRec(node->right, out); // Правое
+    out += node->data; out += ' '; // Корень
+}
+
+// Текстовые представления дерева
+std::string BinaryTree::printHorizontal() const {
+    std::ostringstream oss;
+    std::function<void(Node*, int)> print = [&](Node* p, int level) {
+        if (!p) return;
+        print(p->right, level + 1); // Сначала правое (будет сверху)
+        oss << std::string(level * 4, ' ') << p->data << "\n"; // Узел с отступом
+        print(p->left, level + 1); // Затем левое (снизу)
+    };
+    print(root_, 0);
+    return oss.str();
+}
+
+std::string BinaryTree::printVertical() const {
+    if (!root_) return "Дерево пустое.\n";
+    std::ostringstream oss;
+    std::queue<Node*> q;
+    q.push(root_);
+    while (!q.empty()) {
+        size_t sz = q.size();
+        for (size_t i = 0; i < sz; ++i) {
+            Node* node = q.front(); q.pop();
+            if (node) {
+                oss << node->data << ' '; // Выводим узел
+                q.push(node->left); // Планируем детей
+                q.push(node->right);
+            } else {
+                oss << "  "; // Пустое место
+            }
+        }
+        oss << '\n'; // Переход на новый уровень
+    }
+    return oss.str();
+}
+
+// Вспомогательные функции для обхода и очистки
+void BinaryTree::storeInorder(Node* node, std::vector<char>& arr) const {
+    if (!node) return;
+    storeInorder(node->left, arr);
+    arr.push_back(node->data); // Сохраняем данные
+    storeInorder(node->right, arr);
+}
+
+void BinaryTree::deleteRec(Node* node) {
+    if (!node) return;
+    deleteRec(node->left); // Удаляем левое поддерево
+    deleteRec(node->right); // Удаляем правое
+    delete node; // Удаляем сам узел
+}
+
+// Геометрия для графической визуализации
+int BinaryTree::getHeight(Node* node) const {
+    if (!node) return 0;
+    return 1 + std::max(getHeight(node->left), getHeight(node->right)); // Высота от потомков
+}
+
+int BinaryTree::getSubtreeWidth(Node* node) const {
+    if (!node) return 0;
+    return std::max(60, 30 * static_cast<int>(std::log2(getHeight(node) + 1))); // ширина
+}
+
+void BinaryTree::layoutRec(Node* node, int x, int y, int hGap,
+                           std::vector<std::tuple<Node*, int, int>>& layout) const {
+    if (!node) return;
+    layout.emplace_back(node, x, y); // Запоминаем координаты узла
+    int childHGap = std::max(40, hGap / 2); // для детей
+    layoutRec(node->left,  x - hGap, y + 80, childHGap, layout); // Левое поддерево
+    layoutRec(node->right, x + hGap, y + 80, childHGap, layout); // Правое
+}
+
+std::vector<std::tuple<Node*, int, int>> BinaryTree::layoutTree() const {
+    std::vector<std::tuple<Node*, int, int>> layout;
+    if (!root_) return layout;
+    int height = getHeight(root_);
+    int baseHGap = 60 * height; // Начальный отступ от корня
+    layoutRec(root_, 0, 0, baseHGap, layout);
+    return layout;
+}
+
+// Создание вырожденного дерева ("бамбук")
+void BinaryTree::buildSpindly(const std::string& s) {
+    clear();
+    if (s.empty()) return;
+    root_ = new Node(s[0]); // Первый символ – корень
+    Node* cur = root_;
+    for (size_t i = 1; i < s.size(); ++i) {
+        cur->right = new Node(s[i]); // Каждый следующий – правый ребёнок
+        cur = cur->right;
+    }
+    // isBST_ остаётся false
+}
+
+// Балансировка произвольного дерева (без сортировки, по inorder-порядку)
+void BinaryTree::balanceTree() {
+    if (!root_) return;
+    std::vector<char> arr;
+    storeInorder(root_, arr); // Получаем inorder-последовательность
+    Node* newRoot = buildBalancedFromVector(arr, 0, static_cast<int>(arr.size()) - 1);
+    deleteRec(root_);
+    root_ = newRoot; // Замена старого дерева
+}
+
+Node* BinaryTree::buildBalancedFromVector(const std::vector<char>& arr, int start, int end) {
+    if (start > end) return nullptr;
+    int mid = start + (end - start) / 2; // Середина для баланса
+    Node* node = new Node(arr[mid]);
+    node->left  = buildBalancedFromVector(arr, start, mid - 1);
+    node->right = buildBalancedFromVector(arr, mid + 1, end);
+    return node;
+}
+
+// Ручная вставка и удаление
+bool BinaryTree::insertNode(char parentKey, char key, bool asLeftChild) {
+    Node* parent = findNode(root_, parentKey); // Ищем родительский узел
+    if (!parent) return false;
+    if (asLeftChild) {
+        if (parent->left) return false; // Место занято
+        parent->left = new Node(key);
+    } else {
+        if (parent->right) return false;
+        parent->right = new Node(key);
+    }
+    return true;
+}
+
+bool BinaryTree::deleteNode(char key) {
+    auto [node, parent] = findNodeAndParent(root_, nullptr, key); // Ищем узел и его родителя
+    if (!node) return false;
+    if (parent) {
+        if (parent->left == node) parent->left = nullptr; // Удаляем связь у родителя
+        else if (parent->right == node) parent->right = nullptr;
+    } else {
+        root_ = nullptr; // Удаляемый узел – корень
+    }
+    deleteRec(node); // Рекурсивно удаляем всё поддерево
+    return true;
+}
+
+Node* BinaryTree::findNode(Node* node, char key) const {
+    if (!node) return nullptr;
+    if (node->data == key) return node; // Нашли
+    Node* leftRes = findNode(node->left, key); // Ищем в левом
+    if (leftRes) return leftRes;
+    return findNode(node->right, key); // Ищем в правом
+}
+
+std::pair<Node*, Node*> BinaryTree::findNodeAndParent(Node* node, Node* parent, char key) const {
+    if (!node) return {nullptr, nullptr};
+    if (node->data == key) return {node, parent}; // Возвращаем узел и его родителя
+    auto left = findNodeAndParent(node->left, node, key);
+    if (left.first) return left;
+    return findNodeAndParent(node->right, node, key);
+}
+
+// Обходы, возвращающие вектор указателей (для пошаговой визуализации)
+void BinaryTree::collectInorder(Node* node, std::vector<Node*>& vec) const {
+    if (!node) return;
+    collectInorder(node->left, vec);
+    vec.push_back(node); // Добавляем после левого
+    collectInorder(node->right, vec);
+}
+
+void BinaryTree::collectPreorder(Node* node, std::vector<Node*>& vec) const {
+    if (!node) return;
+    vec.push_back(node); // Корень первым
+    collectPreorder(node->left, vec);
+    collectPreorder(node->right, vec);
+}
+
+void BinaryTree::collectPostorder(Node* node, std::vector<Node*>& vec) const {
+    if (!node) return;
+    collectPostorder(node->left, vec);
+    collectPostorder(node->right, vec);
+    vec.push_back(node); // Корень последним
+}
+
+std::vector<Node*> BinaryTree::inorderTraversal() const {
+    std::vector<Node*> result;
+    collectInorder(root_, result);
+    return result;
+}
+
+std::vector<Node*> BinaryTree::preorderTraversal() const {
+    std::vector<Node*> result;
+    collectPreorder(root_, result);
+    return result;
+}
+
+std::vector<Node*> BinaryTree::postorderTraversal() const {
+    std::vector<Node*> result;
+    collectPostorder(root_, result);
+    return result;
+}
+
+// Пошаговый поиск в BST (возвращает маршрут от корня до цели)
+void BinaryTree::searchBSTStepsRec(Node* node, char key, std::vector<Node*>& steps) const {
+    if (!node) return;
+    steps.push_back(node); // Запоминаем текущий узел
+    if (key == node->data) return; // Достигли цели
+    if (key < node->data)
+        searchBSTStepsRec(node->left, key, steps); // Идём влево
+    else
+        searchBSTStepsRec(node->right, key, steps); // Идём вправо
+}
+
+std::vector<Node*> BinaryTree::searchBSTSteps(char key) const {
+    std::vector<Node*> steps;
+    searchBSTStepsRec(root_, key, steps);
+    return steps;
+}
+
+// Пошаговый подсчёт (preorder) для визуализации
+void BinaryTree::countKeyStepsRec(Node* node, char key, std::vector<Node*>& steps) const {
+    if (!node) return;
+    steps.push_back(node); // Посещаем узел (preorder)
+    countKeyStepsRec(node->left, key, steps);
+    countKeyStepsRec(node->right, key, steps);
+}
+
+std::vector<Node*> BinaryTree::countKeySteps(char key) const {
+    std::vector<Node*> steps;
+    countKeyStepsRec(root_, key, steps);
+    return steps;
+}
+
+
+
+
+
+
+
+#include <QApplication>
+#include "mainwindow.h"
+
+int main(int argc, char *argv[]) {
+    QApplication app(argc, argv); // Инициализация приложения Qt
+    MainWindow w; // Создание главного окна
+    w.setWindowTitle("Бинарное дерево"); // Установка заголовка окна
+    w.resize(1000, 700); // Задание начального размера окна
+    w.show(); // Отображение окна на экране
+    return app.exec(); // Запуск главного цикла обработки событий
+}
+
+
+
+
+
+
+
+#include "mainwindow.h"
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QPainter>
+#include <QGraphicsEllipseItem>
+#include <QGraphicsLineItem>
+#include <QGraphicsTextItem>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <cmath>
+
+// Конструктор главного окна
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent),
+    scene_(new QGraphicsScene(this)),// Сцена для рисования
+    view_(new QGraphicsView(scene_, this)), // Виджет просмотра сцены
+    textOutput_(new QTextEdit(this)), // Текстовый вывод
+    splitter_(new QSplitter(Qt::Vertical, this)) // Разделитель графика/текст
+{
+    view_->setRenderHint(QPainter::Antialiasing); // Включаем сглаживание
+    view_->setMinimumSize(800, 600); // Минимальные размеры области рисования
+
+    textOutput_->setReadOnly(true); // Запрещаем редактирование текста вывода
+
+    // Разрешаем сжимать виджеты до нуля для гибкости разделителя
+    view_->setMinimumHeight(0);
+    textOutput_->setMinimumHeight(0);
+
+    // Добавляем виджеты в разделитель
+    splitter_->addWidget(view_);
+    splitter_->addWidget(textOutput_);
+    splitter_->setStretchFactor(0, 3); // Вид сцены тянется в 3 раза сильнее
+    splitter_->setStretchFactor(1, 1); // Текстовое поле — в 1 раз
+    splitter_->setSizes({600, 150}); // Начальные высоты
+    setCentralWidget(splitter_); // Устанавливаем разделитель центральным виджетом
+
+    // Панель инструментов для управления пошаговым режимом
+    traversalBar_ = new QToolBar("Обход");
+    stepForwardAction_ = traversalBar_->addAction("Шаг вперёд");
+    stepBackAction_   = traversalBar_->addAction("Шаг назад");
+    stopTraversalAction_ = traversalBar_->addAction("Завершить");
+    traversalBar_->setEnabled(false); // Изначально не активна
+    addToolBar(Qt::BottomToolBarArea, traversalBar_); // Размещаем внизу окна
+
+    // Привязываем действия к слотам
+    connect(stepForwardAction_, &QAction::triggered, this, &MainWindow::onStepForward);
+    connect(stepBackAction_,   &QAction::triggered, this, &MainWindow::onStepBackward);
+    connect(stopTraversalAction_, &QAction::triggered, this, &MainWindow::onStopTraversal);
+
+    // Создание пунктов меню
+    QMenu *treeMenu = menuBar()->addMenu("Дерево");
+    treeMenu->addAction("Создать дерево (бамбук)...", this, &MainWindow::onBuildSpindly);
+    treeMenu->addAction("Создать сбалансированное дерево...", this, &MainWindow::onBuildBalanced);
+    treeMenu->addAction("Сбалансировать дерево", this, &MainWindow::onBalanceTree);
+    treeMenu->addAction("Преобразовать в дерево поиска", this, &MainWindow::onConvertToBST);
+
+    QMenu *bstMenu = menuBar()->addMenu("BST");
+    bstMenu->addAction("Вставить (BST)...", this, &MainWindow::onInsertBST);
+    bstMenu->addAction("Удалить (BST)...", this, &MainWindow::onDeleteBST);
+    bstMenu->addAction("Поиск...", this, &MainWindow::onSearchBST);
+    bstMenu->addAction("Балансировать BST", this, &MainWindow::onBalanceBST);
+    bstMenu->addSeparator();
+    bstMenu->addAction("Количество элементов по ключу...", this, &MainWindow::onCountKey);
+
+    QMenu *editTreeMenu = menuBar()->addMenu("Правка дерева");
+    editTreeMenu->addAction("Вставить узел в...", this, &MainWindow::onInsertNode);
+    editTreeMenu->addAction("Удалить узел...", this, &MainWindow::onDeleteNode);
+
+    QMenu *viewMenu = menuBar()->addMenu("Обходы");
+    viewMenu->addAction("Симметричный (inorder)", this, &MainWindow::onShowInorder);
+    viewMenu->addAction("Прямой (preorder)", this, &MainWindow::onShowPreorder);
+    viewMenu->addAction("Обратный (postorder)", this, &MainWindow::onShowPostorder);
+
+    QMenu *printMenu = menuBar()->addMenu("Текстовая печать");
+    printMenu->addAction("Горизонтальная", this, &MainWindow::onShowHorizontalText);
+    printMenu->addAction("Вертикальная", this, &MainWindow::onShowVerticalText);
+
+    updateVisualization(); // Начальная отрисовка (дерево пустое)
+}
+
+MainWindow::~MainWindow() {} // Деструктор (не требуется дополнительных действий)
+
+// Визуализация дерева
+void MainWindow::updateVisualization() {
+    scene_->clear(); // Очищаем сцену
+
+    if (!tree_.root()) { // Если дерево отсутствует
+        QGraphicsTextItem *text = scene_->addText("Дерево пустое");
+        QFont font;
+        font.setPointSize(28);
+        font.setBold(true);
+        text->setFont(font);
+        text->setDefaultTextColor(Qt::black);
+        text->setPos(0, 0);
+        scene_->setSceneRect(scene_->itemsBoundingRect().adjusted(-20, -20, 20, 20));
+        view_->fitInView(scene_->sceneRect(), Qt::KeepAspectRatio);
+        return;
+    }
+
+    auto layout = tree_.layoutTree(); // Получаем координаты всех узлов (preorder)
+
+    // Рёбра
+    for (const auto& [node, x, y] : layout) {
+        if (node->left) { // Если есть левый ребёнок
+            for (const auto& [child, cx, cy] : layout) {
+                if (child == node->left) { // Нашли координаты левого ребёнка
+                    scene_->addLine(x, y, cx, cy, QPen(Qt::black));
+                    break;
+                }
+            }
+        }
+        if (node->right) { // Если есть правый ребёнок
+            for (const auto& [child, cx, cy] : layout) {
+                if (child == node->right) {
+                    scene_->addLine(x, y, cx, cy, QPen(Qt::black));
+                    break;
+                }
+            }
+        }
+    }
+
+    // Текущий подсвеченный узел (если активен пошаговый режим)
+    Node* highlightNode = nullptr;
+    if (stepActive_ && stepIndex_ >= 0 && stepIndex_ < static_cast<int>(stepSequence_.size())) {
+        highlightNode = stepSequence_[stepIndex_]; // Узел, который нужно выделить
+    }
+
+    // Узлы
+    const int radius = 20; // Радиус кружка узла
+    for (const auto& [node, x, y] : layout) {
+        if (!node) continue; // Пропускаем нулевые указатели
+
+        QColor fillColor = (node == highlightNode) ? QColor(255, 100, 100)
+                                                   : QColor(235, 225, 245);
+        scene_->addEllipse(x - radius, y - radius, 2*radius, 2*radius,
+                           QPen(QColor(148, 0, 211)),
+                           QBrush(fillColor));
+
+        QGraphicsTextItem *text = scene_->addText(QString(node->data)); // Текст с символом
+        if (text) {
+            if (node == highlightNode)
+                text->setDefaultTextColor(Qt::white);
+            text->setPos(x - text->boundingRect().width()/2,
+                         y - text->boundingRect().height()/2); // Центрирование текста
+        }
+
+        // Стрелка для режима поиска (на последнем шаге, если узел найден)
+        if (mode_ == Mode::Search && stepActive_ &&
+            stepIndex_ == static_cast<int>(stepSequence_.size())-1 &&
+            node == searchFound_) {
+            QColor arrowColor(255, 105, 180);
+            QPen arrowPen(arrowColor, 2);
+            const double tipY = y - radius; // Верхняя точка круга (туда нацелена стрелка)
+            const double shaftTopY = tipY - 25; // Длина стрелки
+            scene_->addLine(x, shaftTopY, x, tipY, arrowPen); // Стрелка
+            // Наконечник стрелки (треугольник, направленный вниз)
+            QPolygonF arrowHead;
+            arrowHead << QPointF(x, tipY) // Остриё
+                      << QPointF(x - 4, tipY - 6) // Левый угол основания
+                      << QPointF(x + 4, tipY - 6); // Правый угол основания
+            scene_->addPolygon(arrowHead, QPen(arrowColor), QBrush(arrowColor));
+        }
+
+        // Стрелки для режима подсчёта (все узлы с искомым ключом)
+        if (mode_ == Mode::Count && countMatches_.count(node)) {
+            QColor arrowColor(255, 105, 180);
+            QPen arrowPen(arrowColor, 2);
+            const double tipY = y - radius;
+            const double shaftTopY = tipY - 25;
+            scene_->addLine(x, shaftTopY, x, tipY, arrowPen);
+            QPolygonF arrowHead;
+            arrowHead << QPointF(x, tipY)
+                      << QPointF(x - 4, tipY - 6)
+                      << QPointF(x + 4, tipY - 6);
+            scene_->addPolygon(arrowHead, QPen(arrowColor), QBrush(arrowColor));
+        }
+    }
+
+    // Автоматически подгоняем границы сцены под все элементы с небольшими полями
+    QRectF bounds = scene_->itemsBoundingRect().adjusted(-40, -40, 40, 40);
+    scene_->setSceneRect(bounds);
+    view_->fitInView(bounds, Qt::KeepAspectRatio); // Вписываем с сохранением пропорций
+}
+
+// Создание дерева
+void MainWindow::onBuildSpindly() {
+    bool ok;
+    QString input = QInputDialog::getText(this, "Бамбук", "Введите строку символов:", QLineEdit::Normal, "", &ok);
+    if (ok) {
+        tree_.buildSpindly(input.toStdString()); // Строим вырожденное дерево
+        updateVisualization();
+    }
+}
+
+void MainWindow::onBuildBalanced() {
+    bool ok;
+    QString input = QInputDialog::getText(this, "Сбалансированное", "Строка символов:", QLineEdit::Normal, "", &ok);
+    if (ok) {
+        tree_.buildBalanced(input.toStdString()); // Идеально сбалансированное дерево
+        updateVisualization();
+    }
+}
+
+void MainWindow::onBalanceTree() {
+    if (!tree_.root()) {
+        QMessageBox::warning(this, "Ошибка", "Дерево пустое.");
+        return;
+    }
+    tree_.balanceTree(); // Балансировка произвольного дерева
+    updateVisualization();
+    textOutput_->append("Дерево сбалансировано.");
+}
+
+void MainWindow::onConvertToBST() {
+    if (!tree_.root()) {
+        QMessageBox::warning(this, "Ошибка", "Дерево не создано.");
+        return;
+    }
+    tree_.convertToBST(); // Преобразование в BST
+    updateVisualization();
+    textOutput_->append("Преобразовано в сбалансированное дерево поиска.");
+}
+
+// Операции над BST
+void MainWindow::onInsertBST() {
+    if (!tree_.isBST()) {
+        QMessageBox::warning(this, "Ошибка", "Дерево не является BST.");
+        return;
+    }
+    bool ok;
+    QString keyStr = QInputDialog::getText(this, "Вставка в BST", "Введите символ:", QLineEdit::Normal, "", &ok);
+    if (ok && keyStr.length() == 1) {
+        tree_.insertBST(keyStr.at(0).toLatin1()); // Вставка одного символа
+        updateVisualization();
+    }
+}
+
+void MainWindow::onDeleteBST() {
+    if (!tree_.isBST()) {
+        QMessageBox::warning(this, "Ошибка", "Дерево не является BST.");
+        return;
+    }
+    bool ok;
+    QString keyStr = QInputDialog::getText(this, "Удаление из BST", "Введите символ:", QLineEdit::Normal, "", &ok);
+    if (ok && keyStr.length() == 1) {
+        tree_.deleteBST(keyStr.at(0).toLatin1()); // Удаление символа
+        updateVisualization();
+    }
+}
+
+void MainWindow::onSearchBST() {
+    if (!tree_.isBST()) {
+        QMessageBox::warning(this, "Ошибка", "Дерево не является BST.");
+        return;
+    }
+    bool ok;
+    QString keyStr = QInputDialog::getText(this, "Поиск", "Символ:", QLineEdit::Normal, "", &ok);
+    if (!ok || keyStr.length() != 1) return;
+    char key = keyStr.at(0).toLatin1();
+    stepSequence_ = tree_.searchBSTSteps(key); // Получаем пошаговый маршрут поиска
+    if (stepSequence_.empty()) {
+        textOutput_->append("Дерево пустое.");
+        return;
+    }
+    // Если последний узел в маршруте содержит искомый ключ — поиск успешен
+    searchFound_ = (stepSequence_.back()->data == key) ? stepSequence_.back() : nullptr;
+    mode_ = Mode::Search; // Устанавливаем режим поиска
+    startStepMode(stepSequence_); // Запускаем пошаговый режим
+}
+
+void MainWindow::onBalanceBST() {
+    if (!tree_.isBST()) {
+        QMessageBox::warning(this, "Ошибка", "Сначала преобразуйте в BST.");
+        return;
+    }
+    tree_.balanceBST(); // Балансировка BST
+    updateVisualization();
+    textOutput_->append("BST сбалансировано.");
+}
+
+void MainWindow::onCountKey() {
+    bool ok;
+    QString keyStr = QInputDialog::getText(this, "Подсчёт", "Символ:", QLineEdit::Normal, "", &ok);
+    if (!ok || keyStr.length() != 1) return;
+    char key = keyStr.at(0).toLatin1();
+    stepSequence_ = tree_.countKeySteps(key); // Получаем preorder-обход для подсчёта
+    if (stepSequence_.empty()) {
+        textOutput_->append("Дерево пустое.");
+        return;
+    }
+    countMatches_.clear();
+    // Заполняем множество узлов, содержащих искомый ключ
+    for (Node* n : stepSequence_) {
+        if (n && n->data == key) countMatches_.insert(n);
+    }
+    mode_ = Mode::Count; // Режим подсчёта
+    startStepMode(stepSequence_);
+}
+
+// Произвольная правка дерева (ручная вставка и удаление)
+void MainWindow::onInsertNode() {
+    if (!tree_.root()) {
+        QMessageBox::warning(this, "Ошибка", "Дерево пустое.");
+        return;
+    }
+    bool ok;
+    // Запрашиваем родительский узел
+    QString parentStr = QInputDialog::getText(this, "Родитель", "Символ родительского узла:", QLineEdit::Normal, "", &ok);
+    if (!ok || parentStr.length() != 1) return;
+    char parentKey = parentStr.at(0).toLatin1();
+
+    // Выбираем сторону (лево/право)
+    QStringList sides = {"Левый", "Правый"};
+    QString side = QInputDialog::getItem(this, "Сторона", "Куда вставить:", sides, 0, false, &ok);
+    if (!ok) return;
+    bool asLeft = (side == "Левый");
+
+    // Запрашиваем символ нового узла
+    QString keyStr = QInputDialog::getText(this, "Новый узел", "Символ нового узла:", QLineEdit::Normal, "", &ok);
+    if (!ok || keyStr.length() != 1) return;
+    char key = keyStr.at(0).toLatin1();
+
+    if (tree_.insertNode(parentKey, key, asLeft)) { // Пытаемся вставить
+        updateVisualization();
+        textOutput_->append(QString("Узел '%1' добавлен к '%2' как %3 ребёнок.")
+                                .arg(key).arg(parentKey).arg(asLeft ? "левый" : "правый"));
+    } else {
+        QMessageBox::warning(this, "Ошибка", "Не удалось вставить: родитель не найден или позиция занята.");
+    }
+}
+
+void MainWindow::onDeleteNode() {
+    if (!tree_.root()) {
+        QMessageBox::warning(this, "Ошибка", "Дерево пустое.");
+        return;
+    }
+    bool ok;
+    QString keyStr = QInputDialog::getText(this, "Удаление узла", "Символ удаляемого узла:", QLineEdit::Normal, "", &ok);
+    if (!ok || keyStr.length() != 1) return;
+    char key = keyStr.at(0).toLatin1();
+    if (tree_.deleteNode(key)) { // Удаляем первый попавшийся узел с таким ключом
+        updateVisualization();
+        textOutput_->append(QString("Узел '%1' удалён.").arg(key));
+    } else {
+        QMessageBox::information(this, "Не найдено", "Узел с таким символом не найден.");
+    }
+}
+
+// Пошаговый режим (общий для обходов, поиска, подсчёта)
+void MainWindow::startStepMode(const std::vector<Node*>& nodes) {
+    stepSequence_ = nodes; // Сохраняем последовательность узлов
+    stepIndex_ = -1; // Индекс перед первым элементом
+    stepActive_ = true; // Активируем пошаговый режим
+    traversalBar_->setEnabled(true); // Включаем панель инструментов
+    onStepForward(); // Сразу показываем первый элемент
+}
+
+QString MainWindow::collectTraversalString(const std::vector<Node*>& nodes) const {
+    QString result;
+    for (const auto& n : nodes) {
+        if (n) {
+            result += n->data; // Добавляем символ узла
+            result += ' '; // Разделитель
+        }
+    }
+    if (!result.isEmpty()) result.chop(1); // Убираем последний пробел
+    return result;
+}
+
+void MainWindow::onStepForward() {
+    if (!stepActive_ || stepSequence_.empty()) return;
+    if (stepIndex_ < static_cast<int>(stepSequence_.size()) - 1) {
+        stepIndex_++; // Переход к следующему узлу
+        if (stepSequence_[stepIndex_]) {
+            updateVisualization(); // Перерисовываем с выделением
+            textOutput_->append(QString("Текущий: '%1'").arg(stepSequence_[stepIndex_]->data));
+        }
+    }
+}
+
+void MainWindow::onStepBackward() {
+    if (!stepActive_ || stepSequence_.empty()) return;
+    if (stepIndex_ > 0) {
+        stepIndex_--; // Возврат к предыдущему узлу
+        if (stepSequence_[stepIndex_]) {
+            updateVisualization();
+            textOutput_->append(QString("Текущий: '%1'").arg(stepSequence_[stepIndex_]->data));
+        }
+    }
+}
+
+void MainWindow::onStopTraversal() {
+    if (stepActive_ && !stepSequence_.empty()) {
+        // Выводим итоговую информацию в зависимости от режима
+        if (mode_ == Mode::Traversal) {
+            textOutput_->append("Итог обхода: " + collectTraversalString(stepSequence_));
+        } else if (mode_ == Mode::Search) {
+            if (searchFound_) textOutput_->append(QString("Элемент '%1' найден.").arg(searchFound_->data));
+            else textOutput_->append("Элемент не найден.");
+        } else if (mode_ == Mode::Count) {
+            int cnt = static_cast<int>(countMatches_.size());
+            if (!countMatches_.empty()) {
+                char c = (*countMatches_.begin())->data;
+                textOutput_->append(QString("Количество '%1': %2").arg(c).arg(cnt));
+            } else {
+                textOutput_->append(QString("Количество: 0"));
+            }
+        }
+    }
+    // Сброс состояния пошагового режима
+    stepActive_ = false;
+    stepIndex_ = -1;
+    stepSequence_.clear();
+    searchFound_ = nullptr;
+    countMatches_.clear();
+    mode_ = Mode::None;
+    traversalBar_->setEnabled(false);
+    updateVisualization();
+    textOutput_->append("Режим завершён.");
+}
+
+// Запуск обходов
+void MainWindow::onShowInorder()  { mode_ = Mode::Traversal; startStepMode(tree_.inorderTraversal()); }
+void MainWindow::onShowPreorder() { mode_ = Mode::Traversal; startStepMode(tree_.preorderTraversal()); }
+void MainWindow::onShowPostorder(){ mode_ = Mode::Traversal; startStepMode(tree_.postorderTraversal()); }
+
+// Текстовая печать (в нижнем поле)
+void MainWindow::onShowHorizontalText() {
+    textOutput_->clear(); // Очищаем поле вывода
+    textOutput_->append("Горизонтальная:\n" + QString::fromStdString(tree_.printHorizontal()));
+}
+
+void MainWindow::onShowVerticalText() {
+    textOutput_->clear();
+    textOutput_->append("Вертикальная:\n" + QString::fromStdString(tree_.printVertical()));
+}
+
+
