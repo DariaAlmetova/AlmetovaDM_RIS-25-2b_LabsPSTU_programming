@@ -1,0 +1,42 @@
+# Qt Creator
+*.user
+*.user.*
+*.autosave
+
+# Build folders
+build-*/
+debug/
+release/
+Debug/
+Release/
+
+# Compiled files
+*.exe
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.ilk
+
+# Qt generated files
+moc_*
+ui_*.h
+qrc_*.cpp
+Makefile
+Makefile.*
+
+# Tesseract data
+tessdata/
+
+# Python / LibreTranslate / Argos
+__pycache__/
+*.pyc
+argos-data/
+ArgosTranslate/
+*.argosmodel
+
+# Temporary screenshots
+test_screenshot.png
+cursor_capture_debug.png
